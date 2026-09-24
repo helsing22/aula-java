@@ -1,1 +1,309 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>aula·java — de null a Senior</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;800&family=JetBrains+Mono:ital,wght@0,400;0,500;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0d1113; --bg2:#0b0f11; --panel:#141b1f; --panel2:#10161a;
+  --line:#233036; --line2:#31414a;
+  --ink:#e9e4d6; --dim:#8b978f; --faint:#5a6663;
+  --amber:#eba33b; --amber2:#f6c46a; --green:#7cc48f; --red:#e26d5c; --cyan:#7db8c4;
+  --mono:'JetBrains Mono',monospace; --disp:'Bricolage Grotesque',sans-serif;
+  --console-h:240px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{background:var(--bg);color:var(--ink);font-family:var(--mono);font-size:14px;overflow:hidden}
+::selection{background:rgba(235,163,59,.28)}
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-thumb{background:#2a373e;border-radius:5px;border:2px solid var(--bg)}
+::-webkit-scrollbar-track{background:transparent}
+button{font-family:var(--mono);cursor:pointer}
+kbd{border:1px solid var(--line2);border-bottom-width:2px;border-radius:4px;padding:1px 5px;font-size:10.5px;color:var(--dim)}
+svg{flex-shrink:0}
 
+/* ---------- header ---------- */
+header{height:54px;display:flex;align-items:center;gap:14px;padding:0 16px;border-bottom:1px solid var(--line);background:var(--panel2)}
+.logo{display:flex;align-items:center;gap:9px;font-weight:700;font-size:15px;letter-spacing:.3px}
+.logo .cup{color:var(--amber)}
+.logo .caret{display:inline-block;width:8px;height:16px;background:var(--amber);margin-left:2px;animation:blink 1.1s steps(1) infinite;vertical-align:-2px}
+@keyframes blink{50%{opacity:0}}
+.logo em{color:var(--faint);font-style:normal;font-weight:400;font-size:11px;margin-left:6px}
+header .spacer{flex:1}
+.chip{display:flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--panel);border-radius:999px;padding:5px 11px;font-size:12px;color:var(--dim)}
+.chip svg{color:var(--faint)}
+.chip b{color:var(--ink);font-weight:700}
+.chip.rank{gap:9px}
+.chip.rank .bar{width:78px;height:4px;background:#1d262b;border-radius:2px;overflow:hidden}
+.chip.rank .bar i{display:block;height:100%;background:var(--amber);border-radius:2px;transition:width .6s cubic-bezier(.2,.9,.3,1)}
+.btn{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line2);background:var(--panel);color:var(--ink);border-radius:8px;padding:7px 13px;font-size:12.5px;transition:border-color .15s,background .15s}
+.btn:hover{border-color:var(--amber);color:var(--amber2)}
+.btn.primary{background:var(--amber);border-color:var(--amber);color:#161006;font-weight:700}
+.btn.primary:hover{background:var(--amber2);color:#161006}
+.btn.ghost{border-color:transparent;background:transparent;color:var(--dim)}
+.btn.ghost:hover{color:var(--ink);border-color:var(--line)}
+#burger{display:none}
+
+/* ---------- layout ---------- */
+#app{display:grid;grid-template-columns:288px minmax(330px,420px) 1fr;height:calc(100% - 54px)}
+#sidebar{border-right:1px solid var(--line);background:var(--panel2);overflow-y:auto;padding:14px 0 30px}
+#lessonPanel{overflow-y:auto;padding:22px 26px 60px;background:var(--bg)}
+#workCol{display:flex;flex-direction:column;min-width:0;border-left:1px solid var(--line);background:var(--bg)}
+
+/* ---------- roadmap ---------- */
+.mod{margin-bottom:4px}
+.mod-head{display:flex;align-items:center;gap:9px;padding:9px 16px;cursor:pointer;color:var(--dim);font-size:11.5px;text-transform:uppercase;letter-spacing:1.2px;user-select:none}
+.mod-head:hover{color:var(--ink)}
+.mod-head .cnt{margin-left:auto;font-size:10.5px;color:var(--faint)}
+.mod-head svg{transition:transform .2s}
+.mod.open .mod-head svg{transform:rotate(180deg)}
+.lesson{display:flex;align-items:center;gap:10px;padding:7px 16px 7px 22px;cursor:pointer;border-left:2px solid transparent;position:relative}
+.lesson:hover{background:rgba(235,163,59,.05)}
+.lesson.active{border-left-color:var(--amber);background:rgba(235,163,59,.08)}
+.lesson.active .l-title{color:var(--amber2)}
+.lesson.locked{cursor:default;opacity:.45}
+.lesson.locked:hover{background:none}
+.node{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.node.done{background:rgba(124,196,143,.15);color:var(--green)}
+.node.now{border:2px solid var(--amber);color:var(--amber)}
+.node.now::after{content:'';width:6px;height:6px;border-radius:50%;background:var(--amber)}
+.node.lock{color:var(--faint)}
+.l-title{font-size:13px;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.l-xp{font-size:10.5px;color:var(--faint)}
+.ghostmod{padding:10px 16px;color:var(--faint);font-size:11.5px;line-height:1.5;border-top:1px dashed var(--line);margin-top:14px}
+.ghostmod b{color:var(--dim);font-weight:500}
+.ghostmod .tag{display:inline-block;border:1px solid var(--line);border-radius:4px;font-size:9.5px;padding:1px 6px;margin-left:6px;letter-spacing:.5px}
+#roadTitle{padding:6px 16px 12px;font-family:var(--disp);font-weight:800;font-size:17px}
+#roadTitle small{display:block;font-family:var(--mono);font-weight:400;font-size:10.5px;color:var(--faint);margin-top:3px;letter-spacing:.4px}
+
+/* ---------- panel lección ---------- */
+.modbadge{display:inline-block;font-size:10.5px;letter-spacing:1.5px;text-transform:uppercase;color:var(--amber);border:1px solid rgba(235,163,59,.35);border-radius:4px;padding:3px 8px;margin-bottom:12px}
+h1.lh{font-family:var(--disp);font-weight:800;font-size:26px;line-height:1.15;margin-bottom:6px}
+.lsub{color:var(--faint);font-size:12px;margin-bottom:20px}
+.sect{margin-bottom:24px}
+.sect>h3{display:flex;align-items:center;gap:8px;font-size:11px;letter-spacing:1.6px;text-transform:uppercase;color:var(--dim);margin-bottom:10px}
+.sect>h3 svg{color:var(--amber)}
+.theory{font-size:13.5px;line-height:1.75;color:#cfd6cd}
+.theory p{margin-bottom:10px}
+.theory strong{color:var(--ink)}
+.theory code, .mission code, .hint-body code{background:#1a2226;border:1px solid var(--line);border-radius:4px;padding:1px 5px;font-size:12px;color:var(--amber2)}
+pre.snip{background:var(--bg2);border:1px solid var(--line);border-radius:8px;padding:12px 14px;margin:10px 0;overflow-x:auto;font-size:12.5px;line-height:1.6}
+.mission{border:1px solid var(--line);border-left:3px solid var(--amber);background:var(--panel2);border-radius:0 8px 8px 0;padding:14px 16px;font-size:13.5px;line-height:1.7;color:#d5dcd2}
+.mission pre.snip{background:var(--bg)}
+details.hint{border:1px solid var(--line);border-radius:8px;margin-bottom:8px;background:var(--panel2)}
+details.hint summary{cursor:pointer;padding:10px 14px;font-size:12.5px;color:var(--dim);display:flex;align-items:center;gap:8px;list-style:none}
+details.hint summary::-webkit-details-marker{display:none}
+details.hint summary:hover{color:var(--amber2)}
+details.hint .hint-body{padding:0 14px 12px;font-size:13px;line-height:1.7;color:#cfd6cd}
+
+/* ---------- editor ---------- */
+.editor{display:flex;flex-direction:column;flex:1;min-height:0}
+.ed-head{display:flex;align-items:center;gap:10px;padding:8px 14px;border-bottom:1px solid var(--line);background:var(--panel2)}
+.ed-file{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--dim)}
+.ed-file b{color:var(--ink);font-weight:500}
+.ed-head .spacer{flex:1}
+.runbtn{display:inline-flex;align-items:center;gap:8px;background:var(--amber);color:#161006;border:none;border-radius:7px;padding:7px 15px;font-weight:700;font-size:12.5px}
+.runbtn:hover{background:var(--amber2)}
+.runbtn:active{transform:translateY(1px)}
+.code-area{position:relative;flex:1;min-height:0;display:flex;background:var(--bg2)}
+.gutter{width:46px;flex-shrink:0;overflow:hidden;padding:14px 0;text-align:right;color:#414d52;font-size:13.5px;line-height:1.6;user-select:none;border-right:1px solid var(--line);background:var(--bg2)}
+.gutter div{padding-right:12px}
+.codewrap{position:relative;flex:1;min-width:0}
+.codewrap pre, .codewrap textarea{position:absolute;inset:0;font:13.5px/1.6 var(--mono);padding:14px 18px;white-space:pre;overflow:auto;tab-size:2}
+.codewrap pre{pointer-events:none;color:#c8d3cc}
+.codewrap textarea{background:transparent;color:transparent;caret-color:var(--amber);border:none;resize:none;outline:none}
+.codewrap textarea::selection{background:rgba(235,163,59,.25)}
+.tok-kw{color:var(--amber)} .tok-str{color:var(--green)} .tok-com{color:#57645d;font-style:italic} .tok-num{color:var(--cyan)} .tok-cls{color:#e5d3a8}
+
+/* ---------- divider ---------- */
+.vdiv{height:5px;cursor:row-resize;background:var(--panel2);border-top:1px solid var(--line);border-bottom:1px solid var(--line);flex-shrink:0}
+.vdiv:hover{background:var(--line)}
+
+/* ---------- consola ---------- */
+.console{height:var(--console-h);min-height:120px;display:flex;flex-direction:column;background:var(--bg2);flex-shrink:0}
+.c-tabs{display:flex;gap:2px;padding:0 10px;border-bottom:1px solid var(--line);align-items:center}
+.c-tab{background:none;border:none;color:var(--dim);font-size:12px;padding:9px 12px;border-bottom:2px solid transparent;display:flex;align-items:center;gap:7px}
+.c-tab.on{color:var(--amber2);border-bottom-color:var(--amber)}
+.c-tab .badge{background:#233036;color:var(--dim);border-radius:999px;font-size:10px;padding:1px 7px}
+.c-tab .badge.ok{background:rgba(124,196,143,.18);color:var(--green)}
+.c-tab .badge.bad{background:rgba(226,109,92,.18);color:var(--red)}
+.c-body{flex:1;overflow-y:auto;padding:10px 16px;font-size:12.5px;line-height:1.65}
+.c-line{white-space:pre-wrap;word-break:break-word}
+.c-line.sys{color:var(--faint)}
+.c-line.out{color:#d7ded4}
+.c-line.err{color:var(--red)}
+.c-line.warn{color:var(--amber2)}
+.c-line.ok{color:var(--green)}
+
+/* ---------- tests ---------- */
+.t-row{border-left:2px solid var(--line2);padding:8px 12px;margin-bottom:6px;border-radius:0 6px 6px 0;background:var(--panel2)}
+.t-row.pass{border-left-color:var(--green)}
+.t-row.fail{border-left-color:var(--red)}
+.t-head{display:flex;align-items:center;gap:9px;font-size:12.5px}
+.t-row.pass .t-head{color:#bfe4c9}
+.t-row.fail .t-head{color:#f0c1ba;cursor:pointer}
+.t-diff{margin-top:9px;display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.t-diff>div{background:var(--bg2);border:1px solid var(--line);border-radius:6px;padding:8px 10px;font-size:11.5px;line-height:1.6;overflow-x:auto}
+.t-diff b{display:block;font-size:9.5px;letter-spacing:1.2px;text-transform:uppercase;margin-bottom:4px;color:var(--faint)}
+.t-diff .exp b{color:var(--green)} .t-diff .got b{color:var(--red)}
+.t-empty{color:var(--faint);font-size:12.5px;padding:14px 4px;line-height:1.7}
+.win{border:1px solid rgba(124,196,143,.4);background:rgba(124,196,143,.08);border-radius:10px;padding:16px 18px;margin-bottom:12px;animation:winIn .45s cubic-bezier(.2,1.2,.4,1)}
+@keyframes winIn{from{transform:scale(.96);opacity:0}}
+.win h4{display:flex;align-items:center;gap:9px;color:var(--green);font-size:14.5px;margin-bottom:6px}
+.win p{font-size:12.5px;color:#b9c9bc;line-height:1.6;margin-bottom:12px}
+.win.gold{border-color:rgba(235,163,59,.5);background:rgba(235,163,59,.08)}
+.win.gold h4{color:var(--amber2)}
+
+/* ---------- toasts ---------- */
+#toasts{position:fixed;right:18px;bottom:18px;display:flex;flex-direction:column;gap:10px;z-index:90}
+.toast{display:flex;align-items:center;gap:10px;background:var(--panel);border:1px solid var(--line2);border-left:3px solid var(--amber);border-radius:9px;padding:11px 16px;font-size:12.5px;min-width:250px;max-width:360px;animation:tIn .3s cubic-bezier(.2,1.1,.4,1);box-shadow:0 10px 30px rgba(0,0,0,.45)}
+.toast.ok{border-left-color:var(--green)} .toast.err{border-left-color:var(--red)}
+.toast.out{animation:tOut .3s forwards}
+@keyframes tIn{from{transform:translateX(30px);opacity:0}}
+@keyframes tOut{to{transform:translateX(30px);opacity:0}}
+.flyxp{position:fixed;z-index:95;color:var(--amber2);font-weight:700;font-size:13px;pointer-events:none;transition:all .8s cubic-bezier(.4,-.2,.6,1)}
+
+/* ---------- modal ---------- */
+.mback{position:fixed;inset:0;background:rgba(5,8,10,.72);z-index:80;display:flex;align-items:center;justify-content:center;animation:fIn .2s}
+@keyframes fIn{from{opacity:0}}
+.modal{background:var(--panel);border:1px solid var(--line2);border-radius:14px;width:min(560px,92vw);max-height:86vh;overflow-y:auto;padding:26px 28px;animation:mIn .25s cubic-bezier(.2,1.1,.4,1)}
+@keyframes mIn{from{transform:translateY(14px) scale(.98);opacity:0}}
+.modal h2{font-family:var(--disp);font-size:21px;font-weight:800;margin-bottom:4px}
+.modal .sub{color:var(--dim);font-size:12.5px;margin-bottom:18px;line-height:1.6}
+.modal h5{font-size:10.5px;letter-spacing:1.5px;text-transform:uppercase;color:var(--dim);margin:18px 0 8px}
+.mrow{display:flex;gap:10px;margin-top:8px;flex-wrap:wrap}
+.mstat{display:flex;gap:18px;margin:14px 0;padding:13px 16px;background:var(--bg2);border:1px solid var(--line);border-radius:10px}
+.mstat div b{display:block;font-size:19px;font-family:var(--disp);color:var(--amber2)}
+.mstat div span{font-size:10.5px;color:var(--faint);letter-spacing:.8px;text-transform:uppercase}
+.gitbox{background:var(--bg2);border:1px solid var(--line);border-radius:8px;padding:12px 14px;font-size:11.5px;line-height:1.8;color:#b9c4bb;white-space:pre-wrap;position:relative}
+.gitbox .copy{position:absolute;top:8px;right:8px}
+
+/* ---------- onboarding ---------- */
+#onb{position:fixed;inset:0;background:var(--bg);z-index:100;display:flex;align-items:center;justify-content:center;padding:20px}
+.onb-card{max-width:560px;width:100%}
+.onb-card .big{font-family:var(--disp);font-weight:800;font-size:clamp(38px,7vw,58px);line-height:1.02;letter-spacing:-1px}
+.onb-card .big em{font-style:normal;color:var(--amber)}
+.onb-card .tag{color:var(--dim);margin:16px 0 26px;font-size:14px;line-height:1.7}
+.onb-feats{display:flex;flex-direction:column;gap:11px;margin-bottom:30px}
+.onb-feats div{display:flex;gap:12px;align-items:flex-start;font-size:13px;color:#c4cdc2;line-height:1.6}
+.onb-feats svg{color:var(--amber);margin-top:2px}
+.onb-feats b{color:var(--ink)}
+.onb-card input{width:100%;background:var(--bg2);border:1px solid var(--line2);border-radius:9px;color:var(--ink);font:14px var(--mono);padding:12px 15px;outline:none;margin-bottom:14px}
+.onb-card input:focus{border-color:var(--amber)}
+
+@media (max-width:1120px){
+  #app{grid-template-columns:1fr}
+  #sidebar{position:fixed;left:0;top:54px;bottom:0;width:290px;z-index:60;transform:translateX(-102%);transition:transform .25s}
+  #sidebar.open{transform:none;box-shadow:20px 0 50px rgba(0,0,0,.5)}
+  #burger{display:inline-flex}
+  #lessonPanel{display:none}
+}
+</style>
+</head>
+<body>
+
+<!-- ============ ONBOARDING ============ -->
+<div id="onb" hidden>
+  <div class="onb-card">
+    <div class="big">de <em>null</em><br>a Senior.</div>
+    <p class="tag">Un curso interactivo de Java que vive en un solo archivo HTML y corre por completo en tu equipo.</p>
+    <div class="onb-feats" id="onbFeats"></div>
+    <input id="onbName" maxlength="24" placeholder="¿Cómo te llamas, futuro Senior? (opcional)">
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <button class="btn primary" id="onbStart" style="padding:11px 20px">Empezar de cero</button>
+      <button class="btn" id="onbImport" style="padding:11px 20px">Importar progreso</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ HEADER ============ -->
+<header>
+  <button class="btn ghost" id="burger" aria-label="menú"></button>
+  <div class="logo"><span class="cup" id="logoCup"></span>aula·java<span class="caret"></span><em>de null a Senior</em></div>
+  <div class="spacer"></div>
+  <div class="chip" id="chipStreak" title="Racha de días"></div>
+  <div class="chip" id="chipXp" title="Puntos de experiencia"></div>
+  <div class="chip rank" id="chipRank"></div>
+  <button class="btn" id="btnExport"></button>
+</header>
+
+<!-- ============ APP ============ -->
+<div id="app">
+  <aside id="sidebar">
+    <div id="roadTitle">Ruta de aprendizaje<small id="roadSub"></small></div>
+    <div id="road"></div>
+  </aside>
+
+  <section id="lessonPanel"></section>
+
+  <section id="workCol">
+    <div class="editor">
+      <div class="ed-head">
+        <span class="ed-file" id="edFile"></span>
+        <div class="spacer"></div>
+        <button class="btn ghost" id="btnReset" title="Restaurar código inicial"></button>
+        <button class="btn ghost" id="btnDl" title="Descargar este .java"></button>
+        <button class="runbtn" id="btnRun"></button>
+      </div>
+      <div class="code-area">
+        <div class="gutter" id="gutter"></div>
+        <div class="codewrap">
+          <pre aria-hidden="true"><code id="hl"></code></pre>
+          <textarea id="code" spellcheck="false" wrap="off" autocomplete="off" autocapitalize="off"></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="vdiv" id="vdiv"></div>
+    <div class="console">
+      <div class="c-tabs">
+        <button class="c-tab on" data-tab="out" id="tabOut">Salida</button>
+        <button class="c-tab" data-tab="tests" id="tabTests"></button>
+      </div>
+      <div class="c-body" id="cOut"></div>
+      <div class="c-body" id="cTests" hidden></div>
+    </div>
+  </section>
+</div>
+
+<div id="toasts"></div>
+<div id="modalHost"></div>
+<input type="file" id="fileImport" accept=".aula,.json" hidden>
+
+<script>
+"use strict";
+/* =====================================================================
+   aula·java — curso interactivo de Java 100% local
+   Estructura: utilidades · cripto · intérprete Java · ZIP · currículo · estado · UI
+===================================================================== */
+
+/* ---------------- utilidades ---------------- */
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const ICONS={
+  lock:'<path d="M7 11V7a5 5 0 0 1 10 0v4"/><rect x="4.5" y="11" width="15" height="10" rx="2"/>',
+  unlock:'<path d="M7 11V7a5 5 0 0 1 9.7-1.6"/><rect x="4.5" y="11" width="15" height="10" rx="2"/>',
+  check:'<path d="M4.5 12.5l5 5L19.5 6.5"/>',
+  x:'<path d="M6 6l12 12M18 6L6 18"/>',
+  zap:'<path d="M13 2 3 14h7l-1 8 10-12h-7l1-8z"/>',
+  flame:'<path d="M12 2.5c1.2 4.2-3.4 5.6-3.4 9.4a3.4 3.4 0 0 0 6.8 0c0-1.1-.5-2.1-1.1-3 2.4 1.2 4.7 3.4 4.7 6.4a7 7 0 0 1-14 0c0-5.4 5.8-7.6 7-12.8z"/>',
+  play:'<path d="M7 4.5v15l13-7.5z" fill="currentColor" stroke="none"/>',
+  down:'<path d="M12 3v12m0 0-4.5-4.5M12 15l4.5-4.5M4 21h16"/>',
+  up:'<path d="M12 21V9m0 0-4.5 4.5M12 9l4.5 4.5M4 3h16"/>',
+  git:'<circle cx="6" cy="5" r="2.4"/><circle cx="6" cy="19" r="2.4"/><path d="M6 7.5v9M17 8a9 9 0 0 1-8 9"/><circle cx="17" cy="5.5" r="2.4"/>',
+  book:'<path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v18H6.5A2.5 2.5 0 0 1 4 18.5v-13z"/><path d="M20 17H6.5a2.5 2.5 0 0 0-2.5 2"/>',
+  target:'<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="1" fill="currentColor"/>',
+  bulb:'<path d="M9.5 18h5M10.5 21h3M12 3a6 6 0 0 1 3.6 10.8c-.7.6-1.6 1.7-1.6 2.2h-4c0-.5-.9-1.6-1.6-2.2A6 6 0 0 1 12 3z"/>',
+  warn:'<path d="M12 3.5 2.8 19.5h18.4L12 3.5z"/><path d="M12 9.5v4.5"/><circle cx="12" cy="17" r=".4" fill="currentColor"/>',
+  reset:'<path d="M3 12a9 9 0 1 0 2.6-6.4M3 4v5h5"/>',
+  file:'<path d="M6 2h8l4 4v16H6V2z"/><path d="M14 2v4h4"/>',
+  menu:'<path d="M4 6h16M4 12h16M4 18h16"/>',
+  chev:'<path d="M6 9l6 6 6-6"/>',
+  term:'<path d="M4 17l6-5-6-5M12 19h8"/>',
+  spark:'<path d="M12 3l1.9 5.4L19.5 10l-5.6 1.6L12 17l-1.9-5.4L4.5 10l5.6-1.6L12 3z"/>',
+  cup:'<path d="M4 8h13v6.5a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5V8z"/><path d="M17 9.5h1.6a2.6 2.6 0 0 1 0 5.2H17"/><path d="M7.5 5V3M11 5V3M14.5 5V3"/>'
+};
+const I=(n,s=16)=>`<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICONS[n]}</svg>`;
