@@ -11,7 +11,6 @@
    Tema oscuro tipo editor. Acento esmeralda. Sin frameworks.
    ============================================================ */
 
-
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
@@ -554,15 +553,15 @@ kbd {
 .editor-tools { display: flex; gap: 4px; }
 
 .editor-wrap {
+  position: relative;
   flex: 1;
   display: flex;
   overflow: hidden;
   background: var(--bg-input);
-  position: relative;
 }
 .line-numbers {
-  width: 44px;
-  padding: 10px 6px 10px 0;
+  width: 48px;
+  padding: 10px 8px 10px 0;
   text-align: right;
   font-family: var(--font-mono);
   font-size: 13px;
@@ -572,11 +571,39 @@ kbd {
   user-select: none;
   overflow: hidden;
   flex-shrink: 0;
+  white-space: pre;
+  border-right: 1px solid var(--border-soft);
+}
+.highlight-overlay {
+  position: absolute;
+  top: 0;
+  left: 48px;
+  right: 0;
+  bottom: 0;
+  padding: 10px 12px;
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.5;
+  white-space: pre;
+  pointer-events: none;
+  color: var(--text);
+  overflow: hidden;
+  tab-size: 4;
+  -moz-tab-size: 4;
+  z-index: 1;
+  background: transparent;
+  letter-spacing: 0;
+  word-spacing: 0;
+  border: 0;
 }
 .editor {
+  position: relative;
+  z-index: 2;
   flex: 1;
   background: transparent;
-  color: var(--text);
+  color: transparent;
+  caret-color: var(--text-bright);
   border: none;
   outline: none;
   resize: none;
@@ -585,14 +612,32 @@ kbd {
   font-size: 13px;
   line-height: 1.5;
   tab-size: 4;
+  -moz-tab-size: 4;
   white-space: pre;
   overflow: auto;
   scrollbar-width: thin;
   scrollbar-color: var(--border) transparent;
+  letter-spacing: 0;
+  word-spacing: 0;
 }
 .editor::-webkit-scrollbar { width: 10px; height: 10px; }
 .editor::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
 .editor::-webkit-scrollbar-track { background: transparent; }
+.editor::selection { background: rgba(16,185,129,0.25); }
+
+/* ---- Syntax highlight tokens ---- */
+.tok-kw   { color: #ff7b72; font-weight: 600; }
+.tok-type { color: #ffa657; }
+.tok-str  { color: #a5d6ff; }
+.tok-num  { color: #79c0ff; }
+.tok-com  { color: #6e7681; font-style: italic; }
+.tok-fn   { color: #d2a8ff; }
+.tok-ann  { color: #f0883e; font-weight: 600; }
+.tok-op   { color: #ff7b72; }
+.tok-bool { color: #79c0ff; font-weight: 600; }
+.tok-punct { color: var(--text-dim); }
+.tok-ident { color: var(--text); }
+.tok-class-ref { color: #ffa657; font-weight: 500; }
 
 /* ===== Console + tests ===== */
 .console-tabs {
@@ -915,6 +960,7 @@ kbd {
         </div>
         <div class="editor-wrap">
           <div id="line-numbers" class="line-numbers" aria-hidden="true"></div>
+          <pre id="highlight-overlay" class="highlight-overlay" aria-hidden="true"></pre>
           <textarea id="editor" class="editor" spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off"></textarea>
         </div>
         <div class="console-tabs">
@@ -1207,19 +1253,21 @@ kbd {
   const STORAGE_KEY = 'aula-java.save.v1';
   const SIG_KEY_KEY  = 'aula-java.sigkey';
 
-  // Rangos y umbrales de XP
+  // Rangos y umbrales de XP — curva suave que escala con más ejercicios.
+  // (52 lecciones: 27 básicas + 25 nuevas en módulos 08-12)
   const RANKS = [
-    { id: 'novato',   name: 'Novato',   min: 0,    color: 'novato' },
-    { id: 'aprendiz', name: 'Aprendiz', min: 150,  color: 'aprendiz' },
-    { id: 'junior',   name: 'Junior',   min: 450,  color: 'junior' },
-    { id: 'mid',      name: 'Mid',      min: 900,  color: 'mid' },
-    { id: 'senior',   name: 'Senior',   min: 1800, color: 'senior' }
+    { id: 'novato',    name: 'Novato',    min: 0,     color: 'novato' },
+    { id: 'aprendiz',  name: 'Aprendiz',  min: 300,   color: 'aprendiz' },
+    { id: 'junior',    name: 'Junior',    min: 800,   color: 'junior' },
+    { id: 'mid',       name: 'Mid',       min: 1800,  color: 'mid' },
+    { id: 'senior',    name: 'Senior',    min: 4000,  color: 'senior' },
+    { id: 'maestro',   name: 'Maestro',  min: 8000,  color: 'senior' }
   ];
 
-  // XP base por lección, +bonus si resuelves sin pedir pistas
-  const XP_PER_LESSON = 50;
-  const XP_BONUS_NO_HINTS = 20;
-  const XP_PER_MODULE_COMPLETE = 100;
+  // XP por lección — curva más generosa para mantener motivación
+  const XP_PER_LESSON = 60;        // base por resolver
+  const XP_BONUS_NO_HINTS = 30;    // sin pistas
+  const XP_PER_MODULE_COMPLETE = 150;
 
   // ---- Claves criptográficas ----
   // Generamos una clave de firma y una de cifrado derivadas de una
@@ -1463,7 +1511,10 @@ kbd {
     'boolean', 'char', 'byte', 'short', 'String', 'StringBuilder',
     'return', 'if', 'else', 'while', 'for', 'do', 'switch', 'case',
     'break', 'continue', 'new', 'true', 'false', 'null', 'this', 'final',
-    'default'
+    'default', 'private', 'protected',
+    // OOP / extensions
+    'extends', 'implements', 'super', 'import', 'package', 'instanceof',
+    'interface', 'enum', 'abstract', 'throws', 'throw', 'try', 'catch', 'finally'
   ]);
 
   const TYPE_KEYWORDS = new Set([
@@ -1612,7 +1663,7 @@ kbd {
         i += 2; col += 2; continue;
       }
       // 1-char
-      if ('+-*/%=<>!&|^~?:;,()[]{}.'.includes(ch)) {
+      if ('+-*/%=<>!&|^~?:;,()[]{}.@'.includes(ch)) {
         tokens.push({ type: 'OP', value: ch, line, col });
         i++; col++; continue;
       }
@@ -1682,41 +1733,154 @@ kbd {
     // ---- program ----
     function parseProgram() {
       const classes = [];
-      while (!at('EOF')) classes.push(parseClass());
+      while (!at('EOF')) {
+        // skip imports and package
+        if (at('KEYWORD', 'import') || at('KEYWORD', 'package')) {
+          while (!at('OP', ';') && !at('EOF')) next();
+          if (at('OP', ';')) next();
+          continue;
+        }
+        // skip annotations and modifiers at top-level
+        while (at('OP', '@') || at('KEYWORD', 'public') || at('KEYWORD', 'final') || at('KEYWORD', 'abstract')) skipAnnotation();
+        classes.push(parseClass());
+      }
       return N('Program', { classes });
     }
 
-    function parseClass() {
-      // public class Name { ... }
-      while (at('KEYWORD', 'public') || at('KEYWORD', 'final')) next();
-      eat('KEYWORD', 'class');
-      const nameTok = eat('IDENT');
-      eat('OP', '{');
-      const methods = [];
-      while (!at('OP', '}')) {
-        if (at('EOF')) err('la clase no se cerró (falta } final)');
-        const member = parseClassMember();
-        if (member) methods.push(member);
+    function skipAnnotation() {
+      if (at('OP', '@')) {
+        next();
+        if (at('IDENT')) next();
+        // optional () with args
+        if (at('OP', '(')) {
+          let depth = 1; next();
+          while (depth > 0 && !at('EOF')) {
+            if (at('OP', '(')) depth++;
+            else if (at('OP', ')')) depth--;
+            if (depth > 0) next();
+          }
+          if (at('OP', ')')) next();
+        }
+      } else {
+        next();
       }
-      eat('OP', '}');
-      return N('ClassDecl', { name: nameTok.value, methods });
     }
 
-    function parseClassMember() {
-      // modifiers
-      while (at('KEYWORD', 'public') || at('KEYWORD', 'static') || at('KEYWORD', 'final') || at('KEYWORD', 'private')) next();
-      // type
-      if (!isTypeStart()) err('se esperaba una declaración de método o campo');
-      const rtype = parseType();
+    function parseClass() {
+      // public (abstract | final) class Name [extends Parent] [implements I1, I2] { ... }
+      while (at('KEYWORD', 'public') || at('KEYWORD', 'final') || at('KEYWORD', 'abstract') || at('OP', '@')) skipAnnotation();
+      eat('KEYWORD', 'class');
       const nameTok = eat('IDENT');
+      let parent = null;
+      if (at('KEYWORD', 'extends')) {
+        next();
+        const parentTok = eat('IDENT');
+        parent = parentTok.value;
+        // generics on parent type
+        skipGenerics();
+      }
+      if (at('KEYWORD', 'implements')) {
+        next();
+        eat('IDENT');
+        skipGenerics();
+        while (at('OP', ',')) { next(); eat('IDENT'); skipGenerics(); }
+      }
+      eat('OP', '{');
+      const methods = [];
+      const fields = [];
+      const constructors = [];
+      while (!at('OP', '}')) {
+        if (at('EOF')) err('la clase no se cerró (falta } final)');
+        // skip annotations and modifiers
+        while (at('OP', '@')) skipAnnotation();
+        const member = parseClassMember(nameTok.value);
+        if (!member) continue;
+        if (member.type === 'ConstructorDecl') constructors.push(member);
+        else if (member.type === 'FieldDecl') fields.push(member);
+        else methods.push(member);
+      }
+      eat('OP', '}');
+      return N('ClassDecl', { name: nameTok.value, parent, methods, fields, constructors });
+    }
+
+    function skipGenerics() {
+      // if next is '<', skip until matching '>'
+      if (at('OP', '<')) {
+        next();
+        let depth = 1;
+        while (depth > 0 && !at('EOF')) {
+          if (at('OP', '<')) { depth++; next(); }
+          else if (at('OP', '>')) { depth--; next(); }
+          else if (atValue('>>')) { depth -= 2; next(); }
+          else next();
+        }
+      }
+    }
+
+    function parseClassMember(className) {
+      // modifiers
+      let isStatic = false;
+      let isPublic = false;
+      let isPrivate = false;
+      let isProtected = false;
+      let isFinal = false;
+      let isAbstract = false;
+      while (true) {
+        if (at('KEYWORD', 'public')) { isPublic = true; next(); }
+        else if (at('KEYWORD', 'static')) { isStatic = true; next(); }
+        else if (at('KEYWORD', 'private')) { isPrivate = true; next(); }
+        else if (at('KEYWORD', 'protected')) { isProtected = true; next(); }
+        else if (at('KEYWORD', 'final')) { isFinal = true; next(); }
+        else if (at('KEYWORD', 'abstract')) { isAbstract = true; next(); }
+        else break;
+      }
+
+      // Constructor? Pattern: IDENT == className && next is '('
+      if (at('IDENT') && peek().value === className && peek(1).type === 'OP' && peek(1).value === '(') {
+        const nameTok = next();
+        const params = parseParams();
+        const body = parseBlock();
+        return N('ConstructorDecl', { name: nameTok.value, params, body });
+      }
+
+      if (!isTypeStart()) err('se esperaba una declaración de método, campo o constructor');
+      const rtype = parseType();
+      skipGenerics();
+      const nameTok = eat('IDENT');
+
       if (at('OP', '(')) {
         // method
         const params = parseParams();
+        skipGenerics(); // for return type after params? rare, but tolerate
+        if (at('KEYWORD', 'throws')) {
+          next();
+          eat('IDENT');
+          while (at('OP', ',')) { next(); eat('IDENT'); }
+        }
+        // abstract method ends with ';'
+        if (isAbstract || at('OP', ';')) {
+          eat('OP', ';');
+          return N('MethodDecl', { returnType: rtype, name: nameTok.value, params, body: null, isStatic, isAbstract });
+        }
         const body = parseBlock();
-        return N('MethodDecl', { returnType: rtype, name: nameTok.value, params, body });
+        return N('MethodDecl', { returnType: rtype, name: nameTok.value, params, body, isStatic, isAbstract: false });
       }
-      // field: not supported in our subset — skip with error
-      err('las variables de clase no se soportan en este subconjunto; decláralas dentro de un método');
+
+      // field declaration(s): Type name [= init], name2 [= init2], ...;
+      const decls = [{ name: nameTok.value, init: null }];
+      if (at('OP', '=')) {
+        next();
+        decls[0].init = parseInitializer(rtype);
+      }
+      while (at('OP', ',')) {
+        next();
+        const nameTok2 = eat('IDENT');
+        let init2 = null;
+        if (at('OP', '=')) { next(); init2 = parseInitializer(rtype); }
+        decls.push({ name: nameTok2.value, init: init2 });
+      }
+      eat('OP', ';');
+      return N('FieldDecl', { ftype: rtype, decls, isStatic });
     }
 
     function isTypeStart() {
@@ -1737,6 +1901,8 @@ kbd {
       } else if (at('IDENT')) {
         t = next().value;
       } else err('se esperaba un tipo');
+      // generics
+      skipGenerics();
       // array suffix
       let dims = 0;
       while (at('OP', '[') && peek(1).value === ']') {
@@ -1785,6 +1951,7 @@ kbd {
           case 'return':    return parseReturn();
           case 'break':     next(); eat('OP', ';'); return N('Break', {});
           case 'continue':  next(); eat('OP', ';'); return N('Continue', {});
+          case 'throw':     next(); const e = parseExpression(); eat('OP', ';'); return N('Throw', { expr: e });
           case 'final':
           case 'int':
           case 'long':
@@ -1797,12 +1964,43 @@ kbd {
             return parseVarDeclOrExpr();
         }
       }
+      // User-defined type starting a var decl: `Point p = ...` or `ArrayList<Integer> list = ...`
+      // Distinguish from expression by lookahead: TYPE IDENT (=|;|,) — start of var decl
+      if (at('IDENT') && looksLikeVarDecl()) {
+        return parseVarDeclOrExpr();
+      }
       if (at('OP', '{')) return parseBlock();
       // expression statement
       if (at('OP', ';')) { next(); return N('Empty', {}); }
       const expr = parseExpression();
       eat('OP', ';');
       return N('ExprStmt', { expr });
+    }
+
+    function looksLikeVarDecl() {
+      // Try to parse: IDENT (generics)? IDENT (= | ; | ,)
+      // Without consuming tokens — pure lookahead.
+      // Position 0 is the first IDENT (the type). We need to find the second IDENT (the variable name).
+      let i = 1; // skip the first IDENT (the type)
+      let depth = 0;
+      while (true) {
+        const tk = peek(i);
+        if (!tk || tk.type === 'EOF') return false;
+        if (depth === 0 && tk.type === 'IDENT') break; // found the second IDENT — looks like var decl
+        if (depth > 0 && (tk.type === 'IDENT' || tk.type === 'KEYWORD')) { i++; continue; } // inside generics, skip type args
+        if (tk.type === 'OP' && tk.value === '<') { depth++; i++; continue; }
+        if (tk.type === 'OP' && tk.value === '>') { depth--; i++; continue; }
+        if (tk.type === 'OP' && tk.value === '>>') { depth -= 2; i++; continue; }
+        if (depth > 0 && tk.type === 'OP' && tk.value === ',') { i++; continue; } // type args separator inside generics
+        // array suffix
+        if (tk.type === 'OP' && tk.value === '[' && peek(i+1) && peek(i+1).value === ']') { i += 2; continue; }
+        // not a var decl — it's an expression
+        return false;
+      }
+      // we are at the second IDENT (position i)
+      const after = peek(i + 1);
+      if (!after || after.type !== 'OP') return false;
+      return after.value === '=' || after.value === ';' || after.value === ',';
     }
 
     function parseVarDeclOrExpr() {
@@ -1884,11 +2082,61 @@ kbd {
     function parseFor() {
       eat('KEYWORD', 'for');
       eat('OP', '(');
-      // init: var decl or expr list (we only support single)
+      // for-each: TYPE IDENT : expr
+      // Detect: (KEYWORD type or IDENT) (generics?) ([]) IDENT ':' ...
+      let isForEach = false;
+      const save = pos;
+      try {
+        // peek ahead: try to match TYPE IDENT :
+        // skip type token
+        let p = 0;
+        const t0 = peek(p);
+        if (t0 && (t0.type === 'KEYWORD' && TYPE_KEYWORDS.has(t0.value)) || (t0 && t0.type === 'IDENT')) {
+          p++;
+          // skip generics
+          let depth = 0;
+          while (true) {
+            const tk = peek(p);
+            if (!tk) break;
+            if (depth === 0 && tk.type === 'IDENT') break;
+            if (tk.type === 'OP' && tk.value === '<') { depth++; p++; continue; }
+            if (tk.type === 'OP' && tk.value === '>') { depth--; p++; continue; }
+            if (tk.type === 'OP' && tk.value === '>>') { depth -= 2; p++; continue; }
+            if (tk.type === 'OP' && tk.value === '[' && peek(p+1) && peek(p+1).value === ']') { p += 2; continue; }
+            break;
+          }
+          // skip second IDENT (var name)
+          if (peek(p) && peek(p).type === 'IDENT') {
+            p++;
+            if (peek(p) && peek(p).type === 'OP' && peek(p).value === ':') {
+              isForEach = true;
+            }
+          }
+        }
+      } catch (e) {}
+
+      if (isForEach) {
+        const vtype = parseType();
+        const varTok = eat('IDENT');
+        eat('OP', ':');
+        const iter = parseExpression();
+        eat('OP', ')');
+        const body = parseStatement();
+        return N('ForEach', { vtype, varName: varTok.value, iterable: iter, body });
+      }
+
+      // classic for: (init; cond; update)
       let init = null;
       if (!at('OP', ';')) {
         // Try var decl
         if (at('KEYWORD') && TYPE_KEYWORDS.has(peek().value)) {
+          const vtype = parseType();
+          const nameTok = eat('IDENT');
+          let initExpr = null;
+          if (at('OP', '=')) { next(); initExpr = parseExpression(); }
+          init = N('VarDecl', { vtype, decls: [{ name: nameTok.value, init: initExpr }] });
+        } else if (at('IDENT') && looksLikeVarDecl()) {
+          // user-type var decl in for-init
           const vtype = parseType();
           const nameTok = eat('IDENT');
           let initExpr = null;
@@ -2028,9 +2276,15 @@ kbd {
     }
     function parseRel() {
       let left = parseShift();
-      while (at('OP', '<') || at('OP', '>') || at('OP', '<=') || at('OP', '>=')) {
-        const op = next().value;
-        left = N('BinaryOp', { op, left, right: parseShift() });
+      while (at('OP', '<') || at('OP', '>') || at('OP', '<=') || at('OP', '>=') || at('KEYWORD', 'instanceof')) {
+        if (at('KEYWORD', 'instanceof')) {
+          next();
+          const typeTok = eat('IDENT');
+          left = N('InstanceOf', { expr: left, type: typeTok.value });
+        } else {
+          const op = next().value;
+          left = N('BinaryOp', { op, left, right: parseShift() });
+        }
       }
       return left;
     }
@@ -2171,6 +2425,21 @@ kbd {
         }
         if (t.value === 'new') {
           return parseNew();
+        }
+        if (t.value === 'this') {
+          next();
+          // this.field or this.method(args) — handle via postfix
+          return parsePostfix(N('This', {}));
+        }
+        if (t.value === 'super') {
+          next();
+          // super.method(args) or super(args)
+          if (at('OP', '(')) {
+            const args = parseArgs();
+            return N('SuperCall', { args });
+          }
+          // super.field / super.method(args)
+          return parsePostfix(N('Super', {}));
         }
         // type keyword used as expression start (e.g., Math, Integer, Arrays, String)
         // fall through to identifier path
@@ -2327,7 +2596,30 @@ kbd {
     if (isArr(v)) return arraysToString(v);
     if (isNull(v)) return 'null';
     if (v && v.vtype === 'StringBuilder') return v.value.toString();
+    if (v && v.vtype === 'ArrayList') return '[' + v.value.map(javaToString).join(', ') + ']';
+    if (v && v.vtype === 'HashMap') {
+      const parts = [];
+      for (const { k, v: val } of v.value.values()) parts.push(javaToString(k) + '=' + javaToString(val));
+      return '{' + parts.join(', ') + '}';
+    }
+    if (v && v.vtype === 'HashSet') {
+      const parts = [];
+      for (const val of v.value.values()) parts.push(javaToString(val));
+      return '[' + parts.join(', ') + ']';
+    }
+    if (v && v.vtype === 'object') {
+      const cls = v.classObj;
+      return cls ? cls.name + '@' + objectHash(v) : 'object';
+    }
     return String(v.value);
+  }
+  function objectHash(v) {
+    let h = 0;
+    for (const [k, val] of v.fields.entries()) {
+      h = (h * 31 + (k.charCodeAt(0) || 0)) | 0;
+      if (val && typeof val.value === 'number') h = (h + val.value) | 0;
+    }
+    return Math.abs(h).toString(16);
   }
 
   function arraysToString(arr) {
@@ -2514,19 +2806,14 @@ kbd {
     constructor() {
       this.methods = new Map(); // name -> [MethodDecl]
       this.output = [];
-      this.classMap = new Map(); // class name -> ClassDecl
+      this.classes = new Map(); // class name -> ClassDecl
+      this.staticFields = new Map(); // className -> Map<fieldName, valueNode>
+      this.startTime = Date.now();
+      this.maxTime = 10000; // 10 seconds
     }
 
     run(ast) {
-      // collect classes & methods
-      for (const cls of ast.classes) {
-        this.classMap.set(cls.name, cls);
-        for (const m of cls.methods) {
-          if (!this.methods.has(m.name)) this.methods.set(m.name, []);
-          this.methods.get(m.name).push(m);
-        }
-      }
-      // find main
+      this.setup(ast);
       const mains = (this.methods.get('main') || []).filter(m =>
         m.params.length === 1 && m.params[0].type.base === 'String' && m.params[0].type.dims === 1);
       if (!mains.length) throw new JavaError('syntax',
@@ -2535,18 +2822,97 @@ kbd {
       return this.invokeMethod(mains[0], [arrNode('String', [])]);
     }
 
-    invokeMethod(method, args) {
+    setup(ast) {
+      // reset timer
+      this.startTime = Date.now();
+      // collect classes & methods & static fields
+      for (const cls of ast.classes) {
+        this.classes.set(cls.name, cls);
+        // initialize static fields storage
+        if (cls.fields) {
+          for (const f of cls.fields) {
+            if (f.isStatic) {
+              if (!this.staticFields.has(cls.name)) this.staticFields.set(cls.name, new Map());
+              for (const decl of f.decls) {
+                let v;
+                if (decl.init === null) v = defaultValue(f.ftype);
+                else v = this.evalExpr(decl.init, new Env(null));
+                if (f.ftype.dims === 0) v = coerceTo(f.ftype, v, 0);
+                this.staticFields.get(cls.name).set(decl.name, v);
+              }
+            }
+          }
+        }
+        for (const m of cls.methods) {
+          if (m.isStatic) {
+            if (!this.methods.has(m.name)) this.methods.set(m.name, []);
+            this.methods.get(m.name).push(m);
+          }
+        }
+      }
+    }
+
+    invokeMethod(method, args, thisObj) {
       const env = new Env(null);
+      if (thisObj !== undefined) env.define('this', thisObj);
       for (let i = 0; i < method.params.length; i++) {
         env.define(method.params[i].name, args[i]);
       }
       try {
-        this.execBlock(method.body, env);
+        if (method.body) this.execBlock(method.body, env);
       } catch (e) {
         if (e instanceof ReturnSignal) return e.value;
         throw e;
       }
       return null; // void
+    }
+
+    // Look up method in class hierarchy (instance + static)
+    lookupMethod(classDecl, name, arity) {
+      let cls = classDecl;
+      while (cls) {
+        if (cls.methods) {
+          for (const m of cls.methods) {
+            if (m.name === name && m.params.length === arity && m.body) return m;
+          }
+        }
+        cls = cls.parent ? this.classes.get(cls.parent) : null;
+      }
+      return null;
+    }
+
+    // Look up constructor in class
+    lookupConstructor(classDecl, arity) {
+      if (!classDecl.constructors || classDecl.constructors.length === 0) return null;
+      for (const c of classDecl.constructors) {
+        if (c.params.length === arity) return c;
+      }
+      // fall back to first constructor
+      return classDecl.constructors[0];
+    }
+
+    // Initialize object fields, walking up the inheritance chain
+    initObjectFields(obj, classDecl) {
+      // walk from root parent down to current class so child initializers overwrite
+      const chain = [];
+      let cls = classDecl;
+      while (cls) {
+        chain.unshift(cls);
+        cls = cls.parent ? this.classes.get(cls.parent) : null;
+      }
+      for (const c of chain) {
+        if (!c.fields) continue;
+        for (const f of c.fields) {
+          if (f.isStatic) continue;
+          for (const decl of f.decls) {
+            let v;
+            if (decl.init === null) v = defaultValue(f.ftype);
+            else v = this.evalExpr(decl.init, new Env(null));
+            if (f.ftype.dims === 0) v = coerceTo(f.ftype, v, 0);
+            obj.fields.set(decl.name, v);
+          }
+        }
+      }
     }
 
     execBlock(block, env) {
@@ -2564,12 +2930,15 @@ kbd {
         case 'While': return this.execWhile(node, env);
         case 'DoWhile': return this.execDoWhile(node, env);
         case 'For': return this.execFor(node, env);
+        case 'ForEach': return this.execForEach(node, env);
         case 'Switch': return this.execSwitch(node, env);
         case 'Return':
           if (node.value === null) throw new ReturnSignal(null);
           throw new ReturnSignal(this.evalExpr(node.value, env));
         case 'Break': throw new BreakSignal();
         case 'Continue': throw new ContinueSignal();
+        case 'Throw':
+          throw new JavaError('user-thrown', javaToString(this.evalExpr(node.expr, env)), 0, 0);
         default:
           throw new JavaError('runtime', 'sentencia no soportada: ' + node.type, 0, 0);
       }
@@ -2628,8 +2997,47 @@ kbd {
         }
         if (node.update) this.evalExpr(node.update, local);
         guard++;
-        if (guard > 1000000) throw new JavaError('runtime',
-          'el bucle ha excedido 1 000 000 de iteraciones — posible bucle infinito, o revisa tu condición de salida.', 0, 0);
+        if (guard > 50000000) throw new JavaError('runtime',
+          'el bucle ha excedido 50 000 000 de iteraciones — posible bucle infinito, o revisa tu condición de salida.', 0, 0);
+        if (guard % 50000 === 0) this.checkTime();
+      }
+    }
+
+    execForEach(node, env) {
+      const local = new Env(env);
+      const iter = this.evalExpr(node.iterable, env);
+      let elems = null;
+      if (isArr(iter)) {
+        elems = iter.value;
+      } else if (iter && iter.vtype === 'ArrayList') {
+        elems = iter.value;
+      } else if (iter && iter.vtype === 'HashSet') {
+        elems = Array.from(iter.value.values());
+      } else if (isStr(iter)) {
+        const arr = [];
+        for (let i = 0; i < iter.value.length; i++) arr.push(valueNode('char', iter.value.charAt(i)));
+        elems = arr;
+      } else {
+        throw new JavaError('runtime', 'no se puede iterar sobre un valor de tipo ' + (iter ? iter.vtype : 'null'), 0, 0);
+      }
+      let guard = 0;
+      for (let i = 0; i < elems.length; i++) {
+        local.define(node.varName, elems[i]);
+        try { this.execStmt(node.body, local); }
+        catch (e) {
+          if (e instanceof BreakSignal) break;
+          if (e instanceof ContinueSignal) continue;
+          throw e;
+        }
+        guard++;
+        if (guard % 50000 === 0) this.checkTime();
+      }
+    }
+
+    checkTime() {
+      const now = Date.now();
+      if (now - this.startTime > this.maxTime) {
+        throw new JavaError('runtime', 'tiempo agotado (' + (this.maxTime/1000) + ' s) — posible bucle infinito o entrada demasiado grande', 0, 0);
       }
     }
 
@@ -2668,7 +3076,28 @@ kbd {
           if (node.vtype === 'null') return valueNode('null', null);
           return valueNode(node.vtype, node.value);
         }
-        case 'Variable': return env.get(node.name);
+        case 'Variable': {
+          // First check env (local vars, params)
+          if (env.has(node.name)) return env.get(node.name);
+          // Then check `this` for instance fields
+          const thisObj = envLookup(env, 'this');
+          if (thisObj && thisObj.vtype === 'object' && thisObj.fields.has(node.name)) {
+            return thisObj.fields.get(node.name);
+          }
+          // Then check static fields of all classes
+          for (const [className, fields] of this.staticFields.entries()) {
+            if (fields.has(node.name)) return fields.get(node.name);
+          }
+          // Then check if it's a class name (for static method calls like Contador.get())
+          if (this.classes.has(node.name)) {
+            return { vtype: 'class-ref', classObj: this.classes.get(node.name) };
+          }
+          // Then check built-in holders (Integer, Math, Arrays, etc.)
+          if (BUILTIN_HOLDERS[node.name]) {
+            return { vtype: 'builtin-ref', name: node.name };
+          }
+          throw new JavaError('runtime', `la variable '${node.name}' no existe en este alcance`, 0, 0);
+        }
         case 'BinaryOp': {
           const L = this.evalExpr(node.left, env);
           // short-circuit
@@ -2728,6 +3157,33 @@ kbd {
         case 'ArrayLiteral': return this.evalArrayLiteral(node, env);
         case 'NewArray': return this.evalNewArray(node, env);
         case 'NewObject': return this.evalNewObject(node, env);
+        case 'This':
+          return env.get('this');
+        case 'Super':
+          return env.get('this'); // super is just a hint for method dispatch, same object
+        case 'SuperCall': {
+          // super(args) — call parent constructor on this
+          const thisObj = env.get('this');
+          if (!thisObj || thisObj.vtype !== 'object') throw new JavaError('runtime', 'super(...) sólo dentro de un constructor', 0, 0);
+          const parentDecl = this.classes.get(thisObj.classObj.parent);
+          if (!parentDecl) throw new JavaError('runtime', 'super(...): la clase no tiene padre', 0, 0);
+          const ctor = this.lookupConstructor(parentDecl, node.args.length);
+          if (ctor) {
+            const args = node.args.map(a => this.evalExpr(a, env));
+            this.invokeMethod(ctor, args, thisObj);
+          }
+          return null;
+        }
+        case 'InstanceOf': {
+          const v = this.evalExpr(node.expr, env);
+          if (!v || v.vtype !== 'object') return valueNode('boolean', false);
+          let cls = v.classObj;
+          while (cls) {
+            if (cls.name === node.type) return valueNode('boolean', true);
+            cls = cls.parent ? this.classes.get(cls.parent) : null;
+          }
+          return valueNode('boolean', false);
+        }
         default:
           throw new JavaError('runtime', 'expresión no soportada: ' + node.type, 0, 0);
       }
@@ -2753,8 +3209,40 @@ kbd {
 
     assignTo(target, value, env) {
       if (target.type === 'Variable') {
-        env.set(target.name, value);
-        return;
+        // If defined in env (local), assign there (with coercion based on current var type)
+        if (env.has(target.name)) {
+          const cur = env.get(target.name);
+          let v = value;
+          if (cur && isInt(cur) && isDouble(value)) v = valueNode('int', wrapInt(Math.trunc(value.value)));
+          if (cur && isDouble(cur) && isInt(value)) v = valueNode('double', value.value);
+          if (cur && isChar(cur) && isInt(value)) v = valueNode('char', String.fromCharCode(value.value & 0xffff));
+          env.set(target.name, v);
+          return;
+        }
+        // Otherwise, check `this` for instance field
+        const thisObj = envLookup(env, 'this');
+        if (thisObj && thisObj.vtype === 'object' && thisObj.fields.has(target.name)) {
+          const cur = thisObj.fields.get(target.name);
+          let v = value;
+          if (cur && isInt(cur) && isDouble(value)) v = valueNode('int', wrapInt(Math.trunc(value.value)));
+          if (cur && isDouble(cur) && isInt(value)) v = valueNode('double', value.value);
+          if (cur && isChar(cur) && isInt(value)) v = valueNode('char', String.fromCharCode(value.value & 0xffff));
+          thisObj.fields.set(target.name, v);
+          return;
+        }
+        // Check static fields
+        for (const [className, fields] of this.staticFields.entries()) {
+          if (fields.has(target.name)) {
+            const cur = fields.get(target.name);
+            let v = value;
+            if (cur && isInt(cur) && isDouble(value)) v = valueNode('int', wrapInt(Math.trunc(value.value)));
+            if (cur && isDouble(cur) && isInt(value)) v = valueNode('double', value.value);
+            if (cur && isChar(cur) && isInt(value)) v = valueNode('char', String.fromCharCode(value.value & 0xffff));
+            fields.set(target.name, v);
+            return;
+          }
+        }
+        throw new JavaError('runtime', `la variable '${target.name}' no existe (declárala con int ${target.name} = ... antes)`, 0, 0);
       }
       if (target.type === 'ArrayAccess') {
         const arr = this.evalExpr(target.array, env);
@@ -2768,8 +3256,38 @@ kbd {
         return;
       }
       if (target.type === 'FieldAccess') {
-        // StringBuilder charAt set? skip for now
-        throw new JavaError('runtime', 'no se puede asignar a esa expresión', 0, 0);
+        // Object field assignment: obj.field = value
+        // Static field assignment: ClassName.field = value
+        if (target.target.type === 'Variable') {
+          const className = target.target.name;
+          // user static field?
+          if (this.staticFields.has(className)) {
+            const fields = this.staticFields.get(className);
+            if (fields.has(target.name)) {
+              let v = value;
+              // try coerce based on field's current type
+              const cur = fields.get(target.name);
+              if (cur && isInt(cur) && isDouble(value)) v = valueNode('int', wrapInt(Math.trunc(value.value)));
+              if (cur && isDouble(cur) && isInt(value)) v = valueNode('double', value.value);
+              fields.set(target.name, v);
+              return;
+            }
+          }
+        }
+        const recv = this.evalExpr(target.target, env);
+        if (recv && recv.vtype === 'object') {
+          if (recv.fields.has(target.name)) {
+            let v = value;
+            const cur = recv.fields.get(target.name);
+            if (cur && isInt(cur) && isDouble(value)) v = valueNode('int', wrapInt(Math.trunc(value.value)));
+            if (cur && isDouble(cur) && isInt(value)) v = valueNode('double', value.value);
+            if (cur && isChar(cur) && isInt(value)) v = valueNode('char', String.fromCharCode(value.value & 0xffff));
+            recv.fields.set(target.name, v);
+            return;
+          }
+          throw new JavaError('runtime', `la clase ${recv.classObj.name} no tiene un campo '${target.name}'`, 0, 0);
+        }
+        throw new JavaError('runtime', `no se puede asignar al campo '${target.name}' en ${recv ? recv.vtype : 'null'}`, 0, 0);
       }
       throw new JavaError('runtime', 'destino de asignación inválido', 0, 0);
     }
@@ -2811,9 +3329,12 @@ kbd {
 
     evalNewArray(node, env) {
       // sizes: [numberExpr, ...]
-      const dims = node.vtype.dims;
+      // Note: node.vtype.dims may be 0 if user wrote `new boolean[n]` (single-dim, no `[]` after type)
+      // In that case, node.sizes.length is 1 (the size expression).
+      const declaredDims = node.vtype.dims;
+      const numDims = Math.max(declaredDims, node.sizes.length);
       const sizes = [];
-      for (let i = 0; i < dims; i++) {
+      for (let i = 0; i < numDims; i++) {
         if (node.sizes[i] === null) {
           sizes.push(null);
         } else {
@@ -2830,7 +3351,7 @@ kbd {
       const elem = node.vtype.base;
       const data = [];
       for (let i = 0; i < sizes[0]; i++) {
-        data.push(defaultValue({ base: elem, dims: dims - 1 }));
+        data.push(defaultValue({ base: elem, dims: numDims - 1 }));
       }
       return arrNode(elem, data);
     }
@@ -2848,16 +3369,48 @@ kbd {
     }
 
     evalFieldAccess(node, env) {
-      // .length on arrays
-      // System.out handled in method call
+      // .length on arrays/Strings/StringBuilder
       if (node.name === 'length') {
         const t = this.tryEvalExpr(node.target, env);
         if (isArr(t)) return valueNode('int', t.value.length);
         if (isStr(t)) return valueNode('int', t.value.length);
         if (t && t.vtype === 'StringBuilder') return valueNode('int', t.value.toString().length);
-        throw new JavaError('runtime', `'length' solo aplica a arrays, String o StringBuilder (no a ${t ? t.vtype : 'null'})`, 0, 0);
+        if (t && t.vtype === 'ArrayList') return valueNode('int', t.value.length);
+        if (t && t.vtype === 'HashMap') return valueNode('int', t.value.size);
+        if (t && t.vtype === 'HashSet') return valueNode('int', t.value.size);
+        // fall through to object field access (object could have a 'length' field)
       }
-      throw new JavaError('runtime', `no se puede acceder al campo '${node.name}'`, 0, 0);
+      // Static field access: ClassName.fieldName
+      if (node.target.type === 'Variable') {
+        const className = node.target.name;
+        // Built-in class constants
+        if (className === 'Integer') {
+          if (node.name === 'MAX_VALUE') return valueNode('int', INT_MAX);
+          if (node.name === 'MIN_VALUE') return valueNode('int', INT_MIN);
+        }
+        if (className === 'Math') {
+          if (node.name === 'PI') return valueNode('double', Math.PI);
+          if (node.name === 'E') return valueNode('double', Math.E);
+        }
+        if (className === 'Double') {
+          if (node.name === 'MAX_VALUE') return valueNode('double', Number.MAX_VALUE);
+          if (node.name === 'MIN_VALUE') return valueNode('double', -Number.MAX_VALUE);
+          if (node.name === 'POSITIVE_INFINITY') return valueNode('double', Infinity);
+          if (node.name === 'NEGATIVE_INFINITY') return valueNode('double', -Infinity);
+        }
+        // User-defined static field
+        if (this.staticFields.has(className)) {
+          const fields = this.staticFields.get(className);
+          if (fields.has(node.name)) return fields.get(node.name);
+        }
+      }
+      // Object instance field
+      const recv = this.evalExpr(node.target, env);
+      if (recv && recv.vtype === 'object') {
+        if (recv.fields.has(node.name)) return recv.fields.get(node.name);
+        throw new JavaError('runtime', `la clase ${recv.classObj.name} no tiene un campo '${node.name}'`, 0, 0);
+      }
+      throw new JavaError('runtime', `no se puede acceder al campo '${node.name}' en ${recv ? recv.vtype : 'null'}`, 0, 0);
     }
 
     tryEvalExpr(target, env) {
@@ -2874,17 +3427,28 @@ kbd {
         return this.callUserMethod(node.name, node.args, env);
       }
 
-      // Receiver is a "Variable" that resolves to a built-in holder
-      // We try to resolve as built-in first by name
+      // Receiver is a "Variable" that resolves to a built-in holder or a user class
       if (callee.type === 'Variable') {
         const holderName = callee.name;
         // Built-in static method calls: Integer.parseInt, Math.abs, Arrays.toString, etc.
         if (BUILTIN_HOLDERS[holderName]) {
           return BUILTIN_HOLDERS[holderName](this, node.name, node.args, env);
         }
-        // System.out.println
-        if (holderName === 'System' && node.name === 'out') {
-          // Should not happen here — out is a FieldAccess
+        // User-defined class static method (e.g., Contador.get(), ShapeFactory.crear(...))
+        if (this.classes.has(holderName)) {
+          const classDecl = this.classes.get(holderName);
+          // find static method by name + arity
+          const arity = node.args.length;
+          if (classDecl.methods) {
+            for (const m of classDecl.methods) {
+              if (m.name === node.name && m.params.length === arity && m.isStatic && m.body) {
+                const evaluated = node.args.map(a => this.evalExpr(a, env));
+                return this.invokeMethod(m, evaluated);
+              }
+            }
+          }
+          throw new JavaError('runtime',
+            `la clase ${holderName} no tiene un método estático '${node.name}(${arity} arg(s))'`, 0, 0);
         }
       }
 
@@ -2901,7 +3465,14 @@ kbd {
     callPrint(name, args, env) {
       let str = '';
       if (args.length > 0) {
-        const v = this.evalExpr(args[0], env);
+        let v = this.evalExpr(args[0], env);
+        // If v is a user object with a toString() method, invoke it
+        if (v && v.vtype === 'object') {
+          const m = this.lookupMethod(v.classObj, 'toString', 0);
+          if (m) {
+            v = this.invokeMethod(m, [], v);
+          }
+        }
         str = javaToString(v);
         if (args.length > 1) throw new JavaError('runtime', 'println acepta 0 o 1 argumento', 0, 0);
       }
@@ -2919,6 +3490,15 @@ kbd {
     }
 
     callUserMethod(name, args, env) {
+      // First try instance method dispatch if we have `this` in scope
+      const thisObj = envLookup(env, 'this');
+      if (thisObj && thisObj.vtype === 'object') {
+        const m = this.lookupMethod(thisObj.classObj, name, args.length);
+        if (m && !m.isStatic) {
+          const evaluated = args.map(a => this.evalExpr(a, env));
+          return this.invokeMethod(m, evaluated, thisObj);
+        }
+      }
       const methods = this.methods.get(name);
       if (!methods || methods.length === 0) {
         // could be a built-in with implicit receiver (rare)
@@ -2946,6 +3526,19 @@ kbd {
       if (isArr(recv)) {
         if (name === 'length') return valueNode('int', recv.value.length);
       }
+      // ArrayList
+      if (recv && recv.vtype === 'ArrayList') return arrayListMethod(recv, name, evaluated);
+      // HashMap
+      if (recv && recv.vtype === 'HashMap') return hashMapMethod(recv, name, evaluated);
+      // HashSet
+      if (recv && recv.vtype === 'HashSet') return hashSetMethod(recv, name, evaluated);
+      // User object method dispatch
+      if (recv && recv.vtype === 'object') {
+        const method = this.lookupMethod(recv.classObj, name, evaluated.length);
+        if (!method) throw new JavaError('runtime',
+          `la clase ${recv.classObj.name} no tiene un método '${name}(${evaluated.length} arg(s))'`, 0, 0);
+        return this.invokeMethod(method, evaluated, recv);
+      }
       throw new JavaError('runtime', `no existe el método '${name}' en valores de tipo ${recv ? recv.vtype : 'null'}`, 0, 0);
     }
 
@@ -2960,7 +3553,32 @@ kbd {
         }
         return { vtype: 'StringBuilder', value: new JSStringBuilder(init) };
       }
-      throw new JavaError('runtime', `no se puede construir objetos de tipo ${t.base} (sólo StringBuilder en este subconjunto)`, 0, 0);
+      if (t.base === 'ArrayList') {
+        return { vtype: 'ArrayList', value: [] };
+      }
+      if (t.base === 'HashMap') {
+        return { vtype: 'HashMap', value: new Map() };
+      }
+      if (t.base === 'HashSet') {
+        return { vtype: 'HashSet', value: new Map() };
+      }
+      // User-defined class
+      const classDecl = this.classes.get(t.base);
+      if (!classDecl) throw new JavaError('runtime',
+        `la clase '${t.base}' no existe. ¿Olvidaste declararla o la escribiste mal?`, 0, 0);
+      // allocate object
+      const obj = { vtype: 'object', classObj: classDecl, fields: new Map() };
+      this.initObjectFields(obj, classDecl);
+      // run constructor
+      const ctor = this.lookupConstructor(classDecl, args.length);
+      if (ctor) {
+        this.invokeMethod(ctor, args, obj);
+      } else if (args.length > 0) {
+        throw new JavaError('runtime',
+          `la clase ${t.base} no tiene un constructor con ${args.length} argumento(s)`, 0, 0);
+      }
+      // else: default constructor, no-op
+      return obj;
     }
   }
 
@@ -3108,6 +3726,178 @@ kbd {
         return arrNode('String', parts.map(p => valueNode('String', p)));
       }
       default: throw new JavaError('runtime', `String.${name} no soportado`, 0, 0);
+    }
+  }
+
+  // ---- ArrayList methods ----
+  function arrayListMethod(recv, name, args) {
+    const list = recv.value;
+    switch (name) {
+      case 'add': {
+        if (args.length === 1) {
+          list.push(args[0]);
+          return valueNode('boolean', true);
+        }
+        if (args.length === 2 && isInt(args[0])) {
+          list.splice(args[0].value, 0, args[1]);
+          return null;
+        }
+        throw new JavaError('runtime', 'add(x) o add(int, x)', 0, 0);
+      }
+      case 'get': {
+        if (args.length === 1 && isInt(args[0])) {
+          const i = args[0].value;
+          if (i < 0 || i >= list.length) throw new JavaError('runtime',
+            `ArrayList.get(${i}) fuera de rango (0..${list.length - 1})`, 0, 0);
+          return list[i];
+        }
+        throw new JavaError('runtime', 'get(int)', 0, 0);
+      }
+      case 'set': {
+        if (args.length === 2 && isInt(args[0])) {
+          const i = args[0].value;
+          if (i < 0 || i >= list.length) throw new JavaError('runtime',
+            `ArrayList.set(${i}, ...) fuera de rango`, 0, 0);
+          const old = list[i];
+          list[i] = args[1];
+          return old;
+        }
+        throw new JavaError('runtime', 'set(int, x)', 0, 0);
+      }
+      case 'remove': {
+        if (args.length === 1 && isInt(args[0])) {
+          const i = args[0].value;
+          if (i < 0 || i >= list.length) throw new JavaError('runtime',
+            `ArrayList.remove(${i}) fuera de rango`, 0, 0);
+          return list.splice(i, 1)[0];
+        }
+        // remove(Object)
+        const idx = list.findIndex(x => x === args[0] || (x && args[0] && x.vtype === args[0].vtype && x.value === args[0].value));
+        if (idx === -1) return valueNode('boolean', false);
+        list.splice(idx, 1);
+        return valueNode('boolean', true);
+      }
+      case 'size': return valueNode('int', list.length);
+      case 'isEmpty': return valueNode('boolean', list.length === 0);
+      case 'clear': list.length = 0; return null;
+      case 'contains': {
+        return valueNode('boolean', list.some(x => x === args[0] || (x && args[0] && x.vtype === args[0].vtype && x.value === args[0].value)));
+      }
+      case 'indexOf': {
+        const idx = list.findIndex(x => x === args[0] || (x && args[0] && x.vtype === args[0].vtype && x.value === args[0].value));
+        return valueNode('int', idx);
+      }
+      case 'toString': {
+        return valueNode('String', '[' + list.map(javaToString).join(', ') + ']');
+      }
+      case 'getOrDefault': {
+        if (args.length !== 2) throw new JavaError('runtime', 'getOrDefault(int, T)', 0, 0);
+        if (isInt(args[0]) && args[0].value >= 0 && args[0].value < list.length) return list[args[0].value];
+        return args[1];
+      }
+      default: throw new JavaError('runtime', `ArrayList.${name} no soportado`, 0, 0);
+    }
+  }
+
+  // ---- HashMap methods ----
+  function hashKey(v) {
+    if (v === null || v === undefined) return 'null';
+    return v.vtype + ':' + (typeof v.value === 'object' ? JSON.stringify(v.value) : String(v.value));
+  }
+  function hashMapMethod(recv, name, args) {
+    const map = recv.value;
+    switch (name) {
+      case 'put': {
+        if (args.length !== 2) throw new JavaError('runtime', 'put(K, V)', 0, 0);
+        const k = hashKey(args[0]);
+        const old = map.has(k) ? map.get(k).v : null;
+        map.set(k, { k: args[0], v: args[1] });
+        return old;
+      }
+      case 'get': {
+        if (args.length !== 1) throw new JavaError('runtime', 'get(K)', 0, 0);
+        const k = hashKey(args[0]);
+        if (map.has(k)) return map.get(k).v;
+        return valueNode('null', null);
+      }
+      case 'getOrDefault': {
+        if (args.length !== 2) throw new JavaError('runtime', 'getOrDefault(K, V)', 0, 0);
+        const k = hashKey(args[0]);
+        if (map.has(k)) return map.get(k).v;
+        return args[1];
+      }
+      case 'containsKey': {
+        if (args.length !== 1) throw new JavaError('runtime', 'containsKey(K)', 0, 0);
+        return valueNode('boolean', map.has(hashKey(args[0])));
+      }
+      case 'containsValue': {
+        if (args.length !== 1) throw new JavaError('runtime', 'containsValue(V)', 0, 0);
+        for (const { v } of map.values()) {
+          if (v === args[0] || (v && args[0] && v.vtype === args[0].vtype && v.value === args[0].value))
+            return valueNode('boolean', true);
+        }
+        return valueNode('boolean', false);
+      }
+      case 'remove': {
+        if (args.length !== 1) throw new JavaError('runtime', 'remove(K)', 0, 0);
+        const k = hashKey(args[0]);
+        const had = map.has(k);
+        if (had) map.delete(k);
+        return valueNode('null', null);
+      }
+      case 'size': return valueNode('int', map.size);
+      case 'isEmpty': return valueNode('boolean', map.size === 0);
+      case 'clear': map.clear(); return null;
+      case 'keySet': {
+        const arr = [];
+        for (const { k } of map.values()) arr.push(k);
+        return { vtype: 'ArrayList', value: arr };
+      }
+      case 'values': {
+        const arr = [];
+        for (const { v } of map.values()) arr.push(v);
+        return { vtype: 'ArrayList', value: arr };
+      }
+      case 'toString': {
+        const parts = [];
+        for (const { k, v } of map.values()) parts.push(javaToString(k) + '=' + javaToString(v));
+        return valueNode('String', '{' + parts.join(', ') + '}');
+      }
+      default: throw new JavaError('runtime', `HashMap.${name} no soportado`, 0, 0);
+    }
+  }
+
+  // ---- HashSet methods ----
+  function hashSetMethod(recv, name, args) {
+    const set = recv.value;
+    switch (name) {
+      case 'add': {
+        if (args.length !== 1) throw new JavaError('runtime', 'add(x)', 0, 0);
+        const k = hashKey(args[0]);
+        const had = set.has(k);
+        if (!had) set.set(k, args[0]); // store actual value for iteration
+        return valueNode('boolean', !had);
+      }
+      case 'contains': {
+        if (args.length !== 1) throw new JavaError('runtime', 'contains(x)', 0, 0);
+        return valueNode('boolean', set.has(hashKey(args[0])));
+      }
+      case 'remove': {
+        if (args.length !== 1) throw new JavaError('runtime', 'remove(x)', 0, 0);
+        const k = hashKey(args[0]);
+        const had = set.has(k);
+        if (had) set.delete(k);
+        return valueNode('boolean', had);
+      }
+      case 'size': return valueNode('int', set.size);
+      case 'isEmpty': return valueNode('boolean', set.size === 0);
+      case 'clear': set.clear(); return null;
+      case 'toString': {
+        const parts = [];
+        for (const v of set.values()) parts.push(javaToString(v));
+        return valueNode('String', '[' + parts.join(', ') + ']');
+      }
+      default: throw new JavaError('runtime', `HashSet.${name} no soportado`, 0, 0);
     }
   }
 
@@ -3268,52 +4058,36 @@ kbd {
     opts = opts || {};
     const interp = new Interpreter();
     interp.output = [];
-    // capture output and detect overflow
     let captured = '';
     try {
       const ast = global.parser.parse(src);
-      // If user provided args, override the empty args[] passed to main
-      // We need to find main() and inject args as the first parameter
+      // Set up classes & static fields (don't run main yet)
+      interp.setup(ast);
+      // find main method
+      let mainMethod = null;
       for (const cls of ast.classes) {
-        for (const m of cls.methods) {
-          if (m.name === 'main' && m.params.length === 1 && m.params[0].type.base === 'String' && m.params[0].type.dims === 1) {
-            // We'll inject args by replacing the param's initial value? No — env.define will.
-            // We mark this method as the entry point and pass args in.
-            m.__entryArgs = args || [];
+        if (cls.methods) {
+          for (const m of cls.methods) {
+            if (m.name === 'main' && m.params.length === 1 && m.params[0].type.base === 'String' && m.params[0].type.dims === 1 && m.isStatic) {
+              mainMethod = m;
+              break;
+            }
           }
         }
+        if (mainMethod) break;
       }
-      // custom entry injection: temporarily wrap by storing args in a closure
-      const mainMethod = (() => {
-        for (const cls of ast.classes)
-          for (const m of cls.methods)
-            if (m.name === 'main' && m.params.length === 1 && m.params[0].type.base === 'String' && m.params[0].type.dims === 1)
-              return m;
-        return null;
-      })();
       if (!mainMethod) throw new JavaError('syntax', 'no se encontró main(String[] args)', 0, 0);
-      // collect classes & methods
-      for (const cls of ast.classes) {
-        interp.classMap.set(cls.name, cls);
-        for (const m of cls.methods) {
-          if (!interp.methods.has(m.name)) interp.methods.set(m.name, []);
-          interp.methods.get(m.name).push(m);
-        }
-      }
-      // call main with provided args (or empty)
       const argsNode = arrNode('String', (args || []).map(a => valueNode('String', String(a))));
       interp.invokeMethod(mainMethod, [argsNode]);
       captured = interp.output.join('');
       return { ok: true, stdout: captured, error: null };
     } catch (e) {
-      // rethrow internal signals
       if (e instanceof ReturnSignal || e instanceof BreakSignal || e instanceof ContinueSignal) {
         return { ok: false, stdout: interp.output.join(''), error: { kind: 'runtime', message: 'control de flujo inválido fuera de bucle/método', line: 0 } };
       }
       if (e.__javaErr) {
         return { ok: false, stdout: interp.output.join(''), error: { kind: e.kind, message: e.message, line: e.line, col: e.col } };
       }
-      // unknown error
       return { ok: false, stdout: interp.output.join(''), error: { kind: 'internal', message: (e && e.message) || String(e), line: 0 } };
     }
   }
@@ -3335,6 +4109,210 @@ kbd {
   }
 
   global.interpreter = { run, formatError, JavaError };
+})(window);
+
+
+/* === highlight.js === */
+/* ============================================================
+   aula·java — highlight.js
+   Resaltado de sintaxis en tiempo real. Tolerante a código
+   parcial (no falla si el usuario está a mitad de escribir).
+   ============================================================ */
+(function (global) {
+  'use strict';
+
+  const KEYWORDS = new Set([
+    'class','public','static','void','int','long','double','float','boolean','char',
+    'byte','short','return','if','else','while','for','do','switch','case',
+    'break','continue','new','true','false','null','this','final',
+    'default','extends','implements','super','private','protected','import',
+    'package','interface','enum','abstract','instanceof','throw','throws','try','catch','finally'
+  ]);
+
+  const TYPE_PRIMITIVES = new Set([
+    'int','long','double','float','boolean','char','byte','short','void'
+  ]);
+
+  const TYPE_OBJECTS = new Set([
+    'String','StringBuilder','Object','Integer','Double','Math','Arrays',
+    'Character','System','ArrayList','HashMap','HashSet','LinkedList',
+    'List','Map','Set','Collections','Exception','RuntimeException','Throwable'
+  ]);
+
+  const BOOLEAN_LITERALS = new Set(['true','false','null']);
+
+  function escapeHtml(s) {
+    return String(s)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+  }
+
+  function isAlpha(c) {
+    return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c === '_' || c === '$';
+  }
+  function isAlphaNum(c) {
+    return isAlpha(c) || (c >= '0' && c <= '9');
+  }
+  function isDigit(c) {
+    return c >= '0' && c <= '9';
+  }
+
+  function highlightJava(code) {
+    let html = '';
+    let i = 0;
+    const n = code.length;
+
+    while (i < n) {
+      const ch = code[i];
+
+      // whitespace (preserve exactly so it matches the textarea)
+      if (ch === ' ' || ch === '\t' || ch === '\n' || ch === '\r') {
+        html += ch;
+        i++;
+        continue;
+      }
+
+      // line comment
+      if (ch === '/' && code[i+1] === '/') {
+        let j = i;
+        while (j < n && code[j] !== '\n') j++;
+        html += '<span class="tok-com">' + escapeHtml(code.substring(i, j)) + '</span>';
+        i = j;
+        continue;
+      }
+
+      // block comment
+      if (ch === '/' && code[i+1] === '*') {
+        let j = i + 2;
+        while (j < n && !(code[j] === '*' && code[j+1] === '/')) j++;
+        j = Math.min(j + 2, n);
+        html += '<span class="tok-com">' + escapeHtml(code.substring(i, j)) + '</span>';
+        i = j;
+        continue;
+      }
+
+      // string literal
+      if (ch === '"') {
+        let j = i + 1;
+        while (j < n && code[j] !== '"' && code[j] !== '\n') {
+          if (code[j] === '\\') j++;
+          j++;
+        }
+        if (j < n && code[j] === '"') j++;
+        html += '<span class="tok-str">' + escapeHtml(code.substring(i, j)) + '</span>';
+        i = j;
+        continue;
+      }
+
+      // char literal
+      if (ch === "'") {
+        let j = i + 1;
+        while (j < n && code[j] !== "'" && code[j] !== '\n') {
+          if (code[j] === '\\') j++;
+          j++;
+        }
+        if (j < n && code[j] === "'") j++;
+        html += '<span class="tok-str">' + escapeHtml(code.substring(i, j)) + '</span>';
+        i = j;
+        continue;
+      }
+
+      // number
+      if (isDigit(ch) || (ch === '.' && isDigit(code[i+1]))) {
+        let j = i;
+        // hex / octal / binary prefix
+        if (ch === '0' && (code[j+1] === 'x' || code[j+1] === 'X' || code[j+1] === 'b' || code[j+1] === 'B')) {
+          j += 2;
+          while (j < n && /[0-9a-fA-F_]/.test(code[j])) j++;
+        } else {
+          while (j < n && (isDigit(code[j]) || code[j] === '_' || code[j] === '.')) j++;
+          if (code[j] === 'e' || code[j] === 'E') {
+            j++;
+            if (code[j] === '+' || code[j] === '-') j++;
+            while (j < n && isDigit(code[j])) j++;
+          }
+        }
+        // suffix
+        if (/[fFdDlL]/.test(code[j])) j++;
+        html += '<span class="tok-num">' + escapeHtml(code.substring(i, j)) + '</span>';
+        i = j;
+        continue;
+      }
+
+      // identifier / keyword
+      if (isAlpha(ch)) {
+        let j = i;
+        while (j < n && isAlphaNum(code[j])) j++;
+        const word = code.substring(i, j);
+        // look ahead for '(' (method call) — skip whitespace
+        let k = j;
+        while (k < n && (code[k] === ' ' || code[k] === '\t')) k++;
+        const isMethodCall = code[k] === '(';
+
+        let cls = null;
+        if (KEYWORDS.has(word)) {
+          cls = 'tok-kw';
+        } else if (TYPE_PRIMITIVES.has(word)) {
+          cls = 'tok-type';
+        } else if (TYPE_OBJECTS.has(word)) {
+          cls = 'tok-class-ref';
+        } else if (BOOLEAN_LITERALS.has(word)) {
+          cls = 'tok-bool';
+        } else if (word[0] >= 'A' && word[0] <= 'Z') {
+          // Capitalized identifier — treat as type
+          cls = 'tok-class-ref';
+        } else if (isMethodCall) {
+          cls = 'tok-fn';
+        }
+
+        if (cls) {
+          html += '<span class="' + cls + '">' + escapeHtml(word) + '</span>';
+        } else {
+          html += escapeHtml(word);
+        }
+        i = j;
+        continue;
+      }
+
+      // annotation
+      if (ch === '@' && isAlpha(code[i+1])) {
+        let j = i + 1;
+        while (j < n && isAlphaNum(code[j])) j++;
+        html += '<span class="tok-ann">' + escapeHtml(code.substring(i, j)) + '</span>';
+        i = j;
+        continue;
+      }
+
+      // operators
+      if ('+-*/%=<>!&|^~?:;,.()[]{}'.indexOf(ch) >= 0) {
+        // 2-char operators
+        const two = code.substr(i, 2);
+        if (['==','!=','<=','>=','&&','||','++','--','+=','-=','*=','/=','%=','->','::'].indexOf(two) >= 0) {
+          html += '<span class="tok-op">' + escapeHtml(two) + '</span>';
+          i += 2;
+          continue;
+        }
+        if ('+-*/%=<>!&|^~'.indexOf(ch) >= 0) {
+          html += '<span class="tok-op">' + escapeHtml(ch) + '</span>';
+          i++;
+          continue;
+        }
+        // punctuation
+        html += '<span class="tok-punct">' + escapeHtml(ch) + '</span>';
+        i++;
+        continue;
+      }
+
+      // fallback
+      html += escapeHtml(ch);
+      i++;
+    }
+    // trailing newline so the last line shows up in <pre>
+    return html + '\n';
+  }
+
+  global.highlightJava = highlightJava;
 })(window);
 
 
@@ -4835,19 +5813,1523 @@ for (int i = 2; i &lt;= limite; i++) {
     },
 
     // ============================================================
-    // Módulos futuros (en construcción)
+    // MÓDULO 08 — POO (Orientado a objetos, exclusivo)
     // ============================================================
     {
-      id: '08', name: 'POO', subtitle: 'Clases y objetos',
-      lessons: [], upcoming: true
+      id: '08', name: 'POO', subtitle: 'Clases, objetos, herencia, polimorfismo',
+      lessons: [
+        {
+          id: '08.1', title: 'Clases y objetos básicos',
+          theory: `
+            <h3>¿Qué es una clase?</h3>
+            <p>Una <strong>clase</strong> es una plantilla: define qué datos y comportamientos comparten un conjunto de objetos. Un <strong>objeto</strong> es una instancia concreta de esa plantilla, con sus propios valores.</p>
+            <pre><code>class Point {
+    int x;
+    int y;
+}
+
+public class Main {
+    public static void main(String[] args) {
+        Point p = new Point();
+        p.x = 3;
+        p.y = 4;
+        System.out.println(p.x + "," + p.y);
+    }
+}</code></pre>
+            <p>Aquí <code>Point</code> es la clase. <code>p</code> es un objeto de tipo <code>Point</code>, creado con <code>new Point()</code>. Cada objeto tiene su propia copia de los campos <code>x</code> e <code>y</code>.</p>
+            <h3>Convención de nombres</h3>
+            <p>Las clases se nombran en <em>PascalCase</em>: <code>Point</code>, <code>BankAccount</code>, <code>PlayerMovement</code>. Las variables y métodos en <em>camelCase</em>: <code>getX</code>, <code>distance</code>. Esta convención es universal en Java.</p>
+            <div class="callout">
+              <strong>Disciplina:</strong> una clase representa un concepto. Si el nombre de tu clase es un verbo (<code>ProcessData</code>), probablemente debería ser un método. Si es un sustantivo vago (<code>Manager</code>, <code>Helper</code>), probablemente hace demasiadas cosas.
+            </div>
+          `,
+          mission: `
+            <span class="mission-label">Misión</span>
+            <p>Define una clase <code>Point</code> con dos campos <code>int x</code> e <code>int y</code>. En <code>main</code>, crea un <code>Point</code>, asígnale <code>x = 5</code> e <code>y = 7</code>, e imprime <code>"(5, 7)"</code>.</p>
+            <p>Pista: <code>System.out.println("(" + p.x + ", " + p.y + ")")</code>.</p>
+          `,
+          starter: `public class Main {
+    public static void main(String[] args) {
+        // Define la clase Point FUERA de Main (después de la llave de cierre).
+        // Crea un Point, asigna sus campos, imprime.
+    }
+}
+
+class Point {
+    int x;
+    int y;
+}`,
+          hints: [
+            'La clase Point se define DESPUÉS de la clase Main, en el mismo archivo.',
+            'Crea el objeto con: Point p = new Point();',
+            'Asigna con: p.x = 5; p.y = 7;',
+            'Imprime con: System.out.println("(" + p.x + ", " + p.y + ")");'
+          ],
+          tests: [
+            { args: [], expected: line('(5, 7)'), name: 'punto (5,7)' }
+          ]
+        },
+        {
+          id: '08.2', title: 'Constructores',
+          theory: `
+            <h3>Inicializar al crear</h3>
+            <p>En vez de crear un objeto vacío y luego asignar campo por campo, un <strong>constructor</strong> te permite inicializarlo al momento de crearlo con <code>new</code>.</p>
+            <pre><code>class Point {
+    int x;
+    int y;
+    Point(int x, int y) {
+        this.x = x;
+        this.y = y;
+    }
+}
+
+Point p = new Point(3, 4);
+System.out.println(p.x);   // 3</code></pre>
+            <h3>Anatomía del constructor</h3>
+            <ul>
+              <li>Se llama <strong>exactamente igual</strong> que la clase: <code>Point(...)</code>.</li>
+              <li>No tiene tipo de retorno (ni siquiera <code>void</code>).</li>
+              <li>Se invoca con <code>new</code>.</li>
+              <li>Puede tener parámetros como cualquier método.</li>
+            </ul>
+            <h3>El uso de this</h3>
+            <p>Cuando el parámetro del constructor se llama <code>x</code> y el campo también <code>x</code>, hay ambigüedad. <code>this.x = x</code> significa "el campo x de ESTE objeto = el parámetro x". Sin <code>this</code>, Java usaría el parámetro (el más cercano en el alcance).</p>
+            <div class="callout">
+              <strong>Disciplina:</strong> usar <code>this</code> para desambiguar parámetros-vs-campos es una convención muy extendida. Alternativa: llamar al parámetro <code>newX</code>. Ambas son válidas; elige una y sé consistente.
+            </div>
+          `,
+          mission: `
+            <span class="mission-label">Misión</span>
+            <p>Define <code>class Point</code> con un constructor <code>Point(int x, int y)</code> que asigne <code>this.x = x; this.y = y;</code>. En <code>main</code>, crea <code>Point p = new Point(3, 4)</code> e imprime <code>p.x + "," + p.y</code>.</p>
+            <pre><code>3,4</code></pre>
+          `,
+          starter: `public class Main {
+    public static void main(String[] args) {
+        // Point p = new Point(3, 4);
+        // System.out.println(p.x + "," + p.y);
+    }
+}
+
+class Point {
+    int x;
+    int y;
+    // Point(int x, int y) { this.x = x; this.y = y; }
+}`,
+          hints: [
+            'El constructor tiene el mismo nombre que la clase: Point(...)',
+            'Dentro del constructor, this.x se refiere al campo del objeto; x se refiere al parámetro.',
+            'Sin this, this.x = x sería this.x = this.x (sin efecto).'
+          ],
+          tests: [
+            { args: [], expected: line('3,4'), name: 'constructor con args' }
+          ]
+        },
+        {
+          id: '08.3', title: 'Métodos de instancia',
+          theory: `
+            <h3>Comportamiento en la clase</h3>
+            <p>Los métodos de instancia son funciones que viven dentro de la clase y operan sobre los campos del objeto. Se llaman con la notación <code>obj.method(args)</code>.</p>
+            <pre><code>class Point {
+    int x;
+    int y;
+    Point(int x, int y) { this.x = x; this.y = y; }
+    double distance() {
+        return Math.sqrt(x * x + y * y);
+    }
+}
+
+Point p = new Point(3, 4);
+System.out.println(p.distance());   // 5.0</code></pre>
+            <h3>Acceso a campos sin this</h3>
+            <p>Dentro de un método de instancia, puedes acceder a los campos del objeto directamente: <code>x * x + y * y</code>. Java busca primero en variables locales/parámetros, luego en campos del objeto. Si hay un parámetro con el mismo nombre, usa <code>this</code>.</p>
+            <h3>Parámetros y retorno</h3>
+            <p>Los métodos pueden tener parámetros y devolver un valor con <code>return</code>:</p>
+            <pre><code>double distanceTo(Point other) {
+    int dx = this.x - other.x;
+    int dy = this.y - other.y;
+    return Math.sqrt(dx * dx + dy * dy);
+}</code></pre>
+            <div class="callout">
+              <strong>Disciplina:</strong> un buen método de instancia describe una operación sobre el objeto. <code>p.distance()</code> se lee "distancia de p a su origen". <code>p.distanceTo(q)</code> se lee "distancia de p a q".
+            </div>
+          `,
+          mission: `
+            <span class="mission-label">Misión</span>
+            <p>Define <code>class Point</code> con constructor <code>Point(int x, int y)</code> y método <code>double distance()</code> que devuelva la distancia al origen <code>sqrt(x*x + y*y)</code>. En <code>main</code>, crea <code>Point p = new Point(3, 4)</code> e imprime <code>p.distance()</code>.</p>
+            <pre><code>5.0</code></pre>
+          `,
+          starter: `public class Main {
+    public static void main(String[] args) {
+        // Point p = new Point(3, 4);
+        // System.out.println(p.distance());
+    }
+}
+
+class Point {
+    int x;
+    int y;
+    // Point(int x, int y) { this.x = x; this.y = y; }
+    // double distance() { return Math.sqrt(x * x + y * y); }
+}`,
+          hints: [
+            'El método distance() no lleva parámetros: trabaja con los campos x e y del objeto.',
+            'Dentro del método, puedes escribir x * x en vez de this.x * this.x.',
+            'Math.sqrt devuelve double. Asegúrate que el método devuelve double, no int.'
+          ],
+          tests: [
+            { args: [], expected: line('5.0'), name: 'distancia de (3,4) → 5.0' }
+          ]
+        },
+        {
+          id: '08.4', title: 'Getters y setters',
+          theory: `
+            <h3>Encapsulamiento</h3>
+            <p>Si los campos son públicos, cualquiera puede modificarlos con cualquier valor. Si los haces <code>private</code>, solo la propia clase puede tocarlos. Pero entonces necesitas métodos <em>getter</em> (leer) y <em>setter</em> (escribir) para acceder desde fuera.</p>
+            <pre><code>class Cuenta {
+    private double saldo;
+    public Cuenta(double inicial) { this.saldo = inicial; }
+    public double getSaldo() { return saldo; }
+    public void depositar(double cantidad) { saldo += cantidad; }
+    public boolean retirar(double cantidad) {
+        if (cantidad > saldo) return false;
+        saldo -= cantidad;
+        return true;
+    }
+}</code></pre>
+            <h3>¿Por qué molestarse?</h3>
+            <p>Los setters permiten <strong>validar</strong>: aquí <code>retirar</code> comprueba que haya saldo. Si el campo fuera público, alguien podría hacer <code>cuenta.saldo = -1000;</code> y romper el invariante.</p>
+            <p>El encapsulamiento es el primer pilar de la POO. Permite cambiar la implementación interna sin romper a quienes usan la clase.</p>
+            <h3>Convención JavaBeans</h3>
+            <p>En Java, los getters/setters siguen una convención:</p>
+            <ul>
+              <li><code>getCampo()</code> para leer (o <code>isCampo()</code> si es boolean).</li>
+              <li><code>setCampo(valor)</code> para escribir.</li>
+            </ul>
+            <div class="callout">
+              <strong>Disciplina:</strong> no todos los campos necesitan getter y setter. Si un campo es de solo lectura desde fuera, expón solo el getter. Si es interno, no expongas ninguno. La regla "getter y setter para todo" es un antipatrón.
+            </div>
+          `,
+          mission: `
+            <span class="mission-label">Misión</span>
+            <p>Define <code>class Cuenta</code> con campo <code>private double saldo</code>, constructor <code>Cuenta(double inicial)</code>, método <code>void depositar(double cantidad)</code> y método <code>double getSaldo()</code>. En <code>main</code>: crea <code>Cuenta c = new Cuenta(100)</code>, llama <code>c.depositar(50)</code>, imprime <code>c.getSaldo()</code>.</p>
+            <pre><code>150.0</code></pre>
+          `,
+          starter: `public class Main {
+    public static void main(String[] args) {
+        // Cuenta c = new Cuenta(100);
+        // c.depositar(50);
+        // System.out.println(c.getSaldo());
+    }
+}
+
+class Cuenta {
+    private double saldo;
+    // Cuenta(double inicial) { saldo = inicial; }
+    // void depositar(double cantidad) { saldo += cantidad; }
+    // double getSaldo() { return saldo; }
+}`,
+          hints: [
+            'Constructor con el mismo nombre que la clase: Cuenta(double inicial).',
+            'depositar modifica saldo sin validación (suma).',
+            'getSaldo devuelve saldo. Como saldo es double, imprimes 150.0.'
+          ],
+          tests: [
+            { args: [], expected: line('150.0'), name: 'saldo tras depósito' }
+          ]
+        },
+        {
+          id: '08.5', title: 'Herencia (extends)',
+          theory: `
+            <h3>Reutilizar y especializar</h3>
+            <p>La herencia permite crear una clase nueva <strong>extendiendo</strong> una existente. La nueva clase hereda todos los campos y métodos, y puede añadir los suyos.</p>
+            <pre><code>class Animal {
+    String nombre;
+    Animal(String nombre) { this.nombre = nombre; }
+    String sonido() { return "?"; }
+}
+
+class Perro extends Animal {
+    Perro(String nombre) { super(nombre); }
+    String sonido() { return "Guau"; }
+}</code></pre>
+            <p><code>Perro</code> <em>hereda</em> el campo <code>nombre</code> de <code>Animal</code>. El método <code>sonido()</code> se <strong>sobrescribe</strong> (override) en <code>Perro</code> para devolver "Guau".</p>
+            <h3>super(nombre) en constructor</h3>
+            <p>Cuando una clase hija tiene constructor, debe llamar al constructor de la clase padre con <code>super(...)</code> como primera línea. Así se inicializan los campos heredados.</p>
+            <h3>Jerarquía</h3>
+            <p>En Java, una clase solo puede extender <strong>una sola</strong> clase padre (herencia simple). Para heredar comportamiento de múltiples orígenes, se usan <em>interfaces</em> (lo verás en el futuro).</p>
+            <div class="callout warn">
+              <strong>Cuidado:</strong> la herencia es una relación fuerte ("es un"). No la uses para reutilizar código a secas. Si la relación no es "Perro ES un Animal", prefiere composición: Perro TIENE un Corazón, no Perro ES un Corazón.
+            </div>
+          `,
+          mission: `
+            <span class="mission-label">Misión</span>
+            <p>Define <code>class Animal</code> con constructor <code>Animal(String nombre)</code> que guarde <code>this.nombre = nombre</code> y método <code>String nombre()</code> que devuelva el nombre. Define <code>class Perro extends Animal</code> con constructor <code>Perro(String nombre)</code> que llame a <code>super(nombre)</code>. En <code>main</code>, crea <code>Perro p = new Perro("Rex")</code> e imprime <code>p.nombre()</code>.</p>
+            <pre><code>Rex</code></pre>
+          `,
+          starter: `public class Main {
+    public static void main(String[] args) {
+        // Perro p = new Perro("Rex");
+        // System.out.println(p.nombre());
+    }
+}
+
+class Animal {
+    String nombre;
+    // Animal(String nombre) { this.nombre = nombre; }
+    // String nombre() { return nombre; }
+}
+
+class Perro extends Animal {
+    // Perro(String nombre) { super(nombre); }
+}`,
+          hints: [
+            'super(nombre) en el constructor de Perro llama al constructor de Animal.',
+            'El método nombre() se hereda de Animal; no hace falta redefinirlo en Perro.',
+            'El orden de las clases en el archivo no importa: Perro puede ir antes o después de Animal.'
+          ],
+          tests: [
+            { args: [], expected: line('Rex'), name: 'hereda nombre()' }
+          ]
+        },
+        {
+          id: '08.6', title: 'Polimorfismo',
+          theory: `
+            <h3>Un mismo método, múltiples formas</h3>
+            <p>El <strong>polimorfismo</strong> permite tratar objetos de distintas subclases como si fueran de la clase padre, pero con comportamiento específico de cada uno.</p>
+            <pre><code>Animal[] zoo = { new Perro("Rex"), new Gato("Mia"), new Perro("Lassie") };
+for (int i = 0; i < zoo.length; i++) {
+    System.out.println(zoo[i].nombre() + ": " + zoo[i].sonido());
+}</code></pre>
+            <p>Aunque <code>zoo[i]</code> es de tipo <code>Animal</code>, en ejecución Java llama al método <code>sonido()</code> <em>real</em> del objeto (Perro o Gato). Esto es <em>dispatch dinámico</em>.</p>
+            <h3>El operador instanceof</h3>
+            <p>Para saber si un objeto es de un tipo concreto:</p>
+            <pre><code>if (animal instanceof Perro) {
+    Perro p = (Perro) animal;
+    // ...
+}</code></pre>
+            <h3>Cast a subclase</h3>
+            <p>Si sabes que un <code>Animal</code> es realmente un <code>Perro</code>, puedes hacer un <em>cast</em>: <code>(Perro) animal</code>. Si te equivocas, en Java real lanzaría <code>ClassCastException</code>; aquí, simplemente no funcionará.</p>
+            <div class="callout">
+              <strong>Disciplina:</strong> el polimorfismo es el segundo pilar de la POO. Cuando uses <code>instanceof</code> muy a menudo, suele ser señal de que deberías usar polimorfismo en su lugar (poner el método en la clase padre).
+            </div>
+          `,
+          mission: `
+            <span class="mission-label">Misión</span>
+            <p>Define <code>class Animal</code> con método <code>String sonido()</code> que devuelve <code>"?"</code>. Define <code>class Perro extends Animal</code> que sobrescribe <code>sonido()</code> → <code>"Guau"</code>, y <code>class Gato extends Animal</code> que lo sobrescribe → <code>"Miau"</code>. En <code>main</code>, crea un <code>Animal[] zoo</code> con <code>{new Perro(), new Gato(), new Perro()}</code> e imprime los tres sonidos, uno por línea.</p>
+            <pre><code>Guau
+Miau
+Guau</code></pre>
+          `,
+          starter: `public class Main {
+    public static void main(String[] args) {
+        // Animal[] zoo = { new Perro(), new Gato(), new Perro() };
+        // for (int i = 0; i < zoo.length; i++) System.out.println(zoo[i].sonido());
+    }
+}
+
+class Animal {
+    String sonido() { return "?"; }
+}
+
+class Perro extends Animal {
+    // String sonido() { return "Guau"; }
+}
+
+class Gato extends Animal {
+    // String sonido() { return "Miau"; }
+}`,
+          hints: [
+            'Animal[] es un array de referencias a Animal. Puede contener Perro y Gato porque ambos extienden Animal.',
+            'zoo[i].sonido() invoca el método del tipo real del objeto (Perro o Gato), no de Animal.',
+            'Asegúrate de que Perro y Gato sobrescriben sonido() con el mismo nombre y sin parámetros.'
+          ],
+          tests: [
+            { args: [], expected: lines('Guau', 'Miau', 'Guau'), name: 'polimorfismo' }
+          ]
+        }
+      ]
     },
+
+    // ============================================================
+    // MÓDULO 09 — Colecciones
+    // ============================================================
     {
-      id: '09', name: 'Colecciones', subtitle: 'List, Map, Set',
-      lessons: [], upcoming: true
+      id: '09', name: 'Colecciones', subtitle: 'ArrayList, HashMap, HashSet',
+      lessons: [
+        {
+          id: '09.1', title: 'ArrayList — lista dinámica',
+          theory: `
+            <h3>¿Por qué no siempre arrays?</h3>
+            <p>Los arrays en Java tienen tamaño fijo. Si necesitas añadir o quitar elementos dinámicamente, usas <code>ArrayList</code>.</p>
+            <pre><code>import java.util.ArrayList;
+
+ArrayList<Integer> list = new ArrayList<Integer>();
+list.add(10);
+list.add(20);
+list.add(30);
+System.out.println(list.size());   // 3
+System.out.println(list.get(1));    // 20
+list.remove(0);
+System.out.println(list);          // [20, 30]</code></pre>
+            <h3>El patrón &lt;Type&gt;</h3>
+            <p><code>ArrayList&lt;Integer&gt;</code> es un <em>tipo genérico</em>: la lista contiene elementos de tipo <code>Integer</code>. Los genéricos permiten que el compilador verifique tipos. En este intérprete, los genéricos son informativos (no se valida el tipo), pero escribe siempre el tipo correcto — es buena práctica.</p>
+            <h3>Métodos clave</h3>
+            <ul>
+              <li><code>add(x)</code> — añade al final. <code>add(i, x)</code> — inserta en posición i.</li>
+              <li><code>get(i)</code> — lee el elemento en posición i.</li>
+              <li><code>set(i, x)</code> — reemplaza el elemento en posición i.</li>
+              <li><code>remove(i)</code> — elimina y devuelve el elemento en posición i.</li>
+              <li><code>size()</code> — número de elementos. <strong>Ojo:</strong> es <code>size()</code> con paréntesis, no <code>length</code> como en arrays.</li>
+              <li><code>contains(x)</code> — true si la lista contiene x.</li>
+              <li><code>isEmpty()</code> — true si está vacía.</li>
+            </ul>
+            <div class="callout">
+              <strong>Truco:</strong> para iterar, usa <code>for (int x : list)</code> (for-each). Más limpio que el indexado cuando no necesitas el índice.
+            </div>
+          `,
+          mission: `
+            <span class="mission-label">Misión</span>
+            <p>Crea un <code>ArrayList&lt;Integer&gt;</code>, añade 5, 10, 15, 20, 25. Imprime <code>list.size()</code> en una línea y la suma de todos los elementos en otra.</p>
+            <pre><code>5
+75</code></pre>
+          `,
+          starter: `import java.util.ArrayList;
+
+public class Main {
+    public static void main(String[] args) {
+        // ArrayList<Integer> list = new ArrayList<Integer>();
+        // list.add(5); list.add(10); list.add(15); list.add(20); list.add(25);
+        // System.out.println(list.size());
+        // int suma = 0; for (int x : list) suma += x;
+        // System.out.println(suma);
+    }
+}`,
+          hints: [
+            'import java.util.ArrayList; al principio del archivo.',
+            'ArrayList<Integer> es la sintaxis genérica; aquí Integer funciona como int.',
+            'for-each: for (int x : list) suma += x;'
+          ],
+          tests: [
+            { args: [], expected: lines('5', '75'), name: 'size y suma' }
+          ]
+        },
+        {
+          id: '09.2', title: 'HashMap — diccionario',
+          theory: `
+            <h3>Claves y valores</h3>
+            <p>Un <code>HashMap&lt;K, V&gt;</code> asocia claves (key) con valores (value). Es como un diccionario: dada una clave, recuperas su valor en O(1) promedio.</p>
+            <pre><code>import java.util.HashMap;
+
+HashMap<String, Integer> edades = new HashMap<String, Integer>();
+edades.put("Ana", 28);
+edades.put("Beto", 35);
+System.out.println(edades.get("Ana"));   // 28
+System.out.println(edades.containsKey("Beto"));  // true
+System.out.println(edades.size());       // 2</code></pre>
+            <h3>Métodos clave</h3>
+            <ul>
+              <li><code>put(k, v)</code> — añade o actualiza la entrada para la clave k.</li>
+              <li><code>get(k)</code> — devuelve el valor para la clave k, o <code>null</code> si no existe.</li>
+              <li><code>containsKey(k)</code> — true si la clave existe.</li>
+              <li><code>remove(k)</code> — elimina la entrada.</li>
+              <li><code>keySet()</code> — devuelve un conjunto iterable de las claves.</li>
+              <li><code>values()</code> — devuelve una colección iterable de los valores.</li>
+              <li><code>size()</code> — número de entradas.</li>
+            </ul>
+            <h3>Iteración</h3>
+            <pre><code>for (String k : edades.keySet()) {
+    System.out.println(k + " -> " + edades.get(k));
+}</code></pre>
+            <div class="callout warn">
+              <strong>Cuidado:</strong> si pides <code>get(k)</code> de una clave que no existe, obtienes <code>null</code>. Si vas a hacer operaciones con ese valor (sumar, comparar), usa <code>getOrDefault(k, defaultValue)</code> para evitar errores.
+            </div>
+          `,
+          mission: `
+            <span class="mission-label">Misión</span>
+            <p>Crea un <code>HashMap&lt;String, Integer&gt;</code> y añade 3 entradas: "manzana"→3, "plátano"→5, "naranja"→2. Imprime <code>map.size()</code>, luego itera con <code>keySet()</code> imprimiendo <code>"clave: valor"</code> una entrada por línea. Para que el test pase (sin depender del orden interno del HashMap), itera las claves en orden alfabético usando <code>Arrays.sort</code> sobre un array de claves.</p>
+            <pre><code>3
+manzana: 3
+naranja: 2
+plátano: 5</code></pre>
+          `,
+          starter: `import java.util.HashMap;
+import java.util.Arrays;
+
+public class Main {
+    public static void main(String[] args) {
+        // HashMap<String, Integer> map = new HashMap<String, Integer>();
+        // map.put("manzana", 3);
+        // map.put("plátano", 5);
+        // map.put("naranja", 2);
+        // System.out.println(map.size());
+        // String[] claves = new String[3];
+        // int i = 0;
+        // for (String k : map.keySet()) claves[i++] = k;
+        // Arrays.sort(claves);
+        // for (String k : claves) System.out.println(k + ": " + map.get(k));
+    }
+}`,
+          hints: [
+            'put(clave, valor) añade o actualiza.',
+            'keySet() devuelve un iterable de las claves. Copia a un array, ordénalo, itera.',
+            'Arrays.sort(array) ordena el array in-place.',
+            'Imprime el size primero, luego cada entrada en orden alfabético.'
+          ],
+          tests: [
+            {
+              args: [],
+              expected: lines('3', 'manzana: 3', 'naranja: 2', 'plátano: 5'),
+              name: 'size + entradas ordenadas'
+            }
+          ]
+        },
+        {
+          id: '09.3', title: 'for-each: arrays y colecciones',
+          theory: `
+            <h3>El bucle for-each</h3>
+            <p>El bucle for-each simplifica iterar sobre cualquier colección:</p>
+            <pre><code>// arrays
+int[] nums = {1, 2, 3, 4, 5};
+for (int x : nums) {
+    System.out.println(x);
+}
+
+// ArrayList
+ArrayList&lt;String&gt; lista = new ArrayList&lt;String&gt;();
+lista.add("hola"); lista.add("mundo");
+for (String s : lista) {
+    System.out.println(s);
+}</code></pre>
+            <h3>Cuándo usarlo</h3>
+            <p>For-each es ideal cuando <strong>no necesitas el índice</strong>: solo procesas cada elemento. Si necesitas modificar el array o saber la posición, usa el for clásico.</p>
+            <h3>No modifies durante la iteración</h3>
+            <p>En Java real, añadir/eliminar elementos de una colección mientras la iteras con for-each lanza <code>ConcurrentModificationException</code>. La forma correcta de eliminar mientras iteras es con un <code>Iterator</code> explícito.</p>
+            <div class="callout">
+              <strong>Disciplina:</strong> si necesitas filtrar (quitar algunos elementos según una condición), prefiere crear una nueva lista con los que sí quieres. Es más legible y menos propenso a errores.
+            </div>
+          `,
+          mission: `
+            <span class="mission-label">Misión</span>
+            <p>Dado <code>int[] nums = {3, 7, 2, 8, 5, 1, 9, 4}</code>, usa un for-each para calcular la suma de los elementos y el número de elementos mayores que 5. Imprime cada uno en una línea.</p>
+            <pre><code>39
+3</code></pre>
+            <p>(Suma = 3+7+2+8+5+1+9+4 = 39. Mayores que 5: 7, 8, 9 → 3.)</p>
+          `,
+          starter: `public class Main {
+    public static void main(String[] args) {
+        int[] nums = {3, 7, 2, 8, 5, 1, 9, 4};
+        // int suma = 0, mayores = 0;
+        // for (int x : nums) { suma += x; if (x > 5) mayores++; }
+        // System.out.println(suma);
+        // System.out.println(mayores);
+    }
+}`,
+          hints: [
+            'for (int x : nums) itera cada elemento del array.',
+            'Dentro del for-each, acumula suma y cuenta mayores que 5.',
+            'Imprime los dos valores, cada uno en su línea.'
+          ],
+          tests: [
+            { args: [], expected: lines('39', '3'), name: 'suma y conteo' }
+          ]
+        },
+        {
+          id: '09.4', title: 'HashSet — conjunto sin duplicados',
+          theory: `
+            <h3>Conjuntos</h3>
+            <p>Un <code>HashSet&lt;T&gt;</code> es una colección que <strong>no admite duplicados</strong>. Añadir el mismo elemento dos veces no tiene efecto.</p>
+            <pre><code>import java.util.HashSet;
+
+HashSet&lt;Integer&gt; s = new HashSet&lt;Integer&gt;();
+s.add(1); s.add(2); s.add(3);
+System.out.println(s.contains(2));   // true
+s.add(1);  // no hace nada — ya está
+System.out.println(s.size());        // 3
+for (int x : s) System.out.println(x);</code></pre>
+            <h3>¿Cuándo usar HashSet?</h3>
+            <ul>
+              <li>Cuando necesitas eliminar duplicados: metes todo en un HashSet y se quedan los únicos.</li>
+              <li>Cuando necesitas comprobar pertenencia rápido (O(1) promedio): "¿este elemento ya lo vi?".</li>
+              <li>Cuando el orden no importa (HashSet no tiene orden definido).</li>
+            </ul>
+            <h3>Equivalencia con HashMap</h3>
+            <p>Un HashSet es básicamente un HashMap donde solo te importan las claves. De hecho, en muchas implementaciones, HashSet se construye sobre HashMap.</p>
+            <div class="callout">
+              <strong>Truco:</strong> para contar elementos distintos en una lista, métela en un HashSet y mira el tamaño. Mucho más limpio que ir llevando un array de "vistos".
+            </div>
+          `,
+          mission: `
+            <span class="mission-label">Misión</span>
+            <p>Dado <code>int[] nums = {1, 2, 2, 3, 3, 3, 4, 4, 4, 4}</code>, mételos todos en un <code>HashSet&lt;Integer&gt;</code> e imprime el tamaño del conjunto (número de elementos únicos).</p>
+            <pre><code>4</code></pre>
+          `,
+          starter: `import java.util.HashSet;
+
+public class Main {
+    public static void main(String[] args) {
+        int[] nums = {1, 2, 2, 3, 3, 3, 4, 4, 4, 4};
+        // HashSet<Integer> set = new HashSet<Integer>();
+        // for (int x : nums) set.add(x);
+        // System.out.println(set.size());
+    }
+}`,
+          hints: [
+            'HashSet<Integer> es la sintaxis genérica.',
+            'for-each: for (int x : nums) set.add(x);',
+            'El HashSet ignora los duplicados automáticamente.'
+          ],
+          tests: [
+            { args: [], expected: line('4'), name: '4 elementos únicos' }
+          ]
+        }
+      ]
     },
+
+    // ============================================================
+    // MÓDULO 10 — Patrones de diseño
+    // ============================================================
     {
-      id: '10', name: 'Patrones', subtitle: 'De diseño y arquitectura',
-      lessons: [], upcoming: true
+      id: '10', name: 'Patrones', subtitle: 'Soluciones recurrentes',
+      lessons: [
+        {
+          id: '10.1', title: 'Singleton — una sola instancia',
+          theory: `
+            <h3>¿Para qué sirve?</h3>
+            <p>El patrón <strong>Singleton</strong> garantiza que una clase tenga <strong>una sola instancia</strong> y proporciona un punto de acceso global a ella. Ejemplos típicos: una conexión de base de datos, un logger, la configuración del juego.</p>
+            <h3>Cómo se implementa</h3>
+            <pre><code>class Config {
+    private static Config instancia = null;
+    private int nivel;
+    
+    private Config() {
+        nivel = 1;
+    }
+    
+    public static Config get() {
+        if (instancia == null) instancia = new Config();
+        return instancia;
+    }
+    
+    public int getNivel() { return nivel; }
+    public void setNivel(int n) { nivel = n; }
+}</code></pre>
+            <p>El truco:</p>
+            <ul>
+              <li>El constructor es <code>private</code>: nadie puede hacer <code>new Config()</code> desde fuera.</li>
+              <li>Hay un campo <code>private static</code> que guarda la única instancia.</li>
+              <li>El método <code>static get()</code> crea la instancia la primera vez y la devuelve siempre.</li>
+            </ul>
+            <h3>Uso</h3>
+            <pre><code>Config.get().setNivel(5);
+System.out.println(Config.get().getNivel());   // 5 (misma instancia)</code></pre>
+            <div class="callout warn">
+              <strong>Cuidado:</strong> el Singleton es uno de los patrones más usados (y más abusados). Si lo usas para lo que no es — reemplazar variables globales — te arrepentirás. Úsalo solo cuando de verdad necesitas exactamente una instancia.
+            </div>
+          `,
+          mission: `
+            <span class="mission-label">Misión</span>
+            <p>Implementa un Singleton <code>Contador</code> con campo <code>private static Contador instancia</code>, constructor <code>private Contador()</code>, método <code>static Contador get()</code> (lazy-init), y métodos <code>void incrementar()</code> + <code>int getValor()</code>. En <code>main</code>: llama <code>Contador.get().incrementar()</code> tres veces e imprime <code>Contador.get().getValor()</code>.</p>
+            <pre><code>3</code></pre>
+          `,
+          starter: `public class Main {
+    public static void main(String[] args) {
+        // Contador.get().incrementar();
+        // Contador.get().incrementar();
+        // Contador.get().incrementar();
+        // System.out.println(Contador.get().getValor());
+    }
+}
+
+class Contador {
+    // private static Contador instancia = null;
+    // private int valor = 0;
+    // private Contador() {}
+    // public static Contador get() { if (instancia == null) instancia = new Contador(); return instancia; }
+    // public void incrementar() { valor++; }
+    // public int getValor() { return valor; }
+}`,
+          hints: [
+            'El constructor es private para que nadie pueda hacer new Contador() desde fuera.',
+            'get() es static: lo llamas como Contador.get(), no como new Contador().',
+            'Dentro de get(): if (instancia == null) instancia = new Contador(); return instancia;'
+          ],
+          tests: [
+            { args: [], expected: line('3'), name: 'singleton persistente' }
+          ]
+        },
+        {
+          id: '10.2', title: 'Factory method — crear por tipo',
+          theory: `
+            <h3>Crear objetos sin saber la clase concreta</h3>
+            <p>El patrón <strong>Factory Method</strong> delega la creación de objetos a un método, de forma que el código que lo usa no necesita conocer la clase concreta. Solo dice "quiero un objeto de tipo X" y la fábrica decide qué subclase instanciar.</p>
+            <pre><code>abstract class Enemigo {
+    abstract int vida();
+    abstract String nombre();
+}
+
+class Zombie extends Enemigo {
+    int vida() { return 50; }
+    String nombre() { return "Zombie"; }
+}
+
+class Esqueleto extends Enemigo {
+    int vida() { return 30; }
+    String nombre() { return "Esqueleto"; }
+}
+
+class EnemigoFactory {
+    static Enemigo crear(String tipo) {
+        if (tipo.equals("zombie")) return new Zombie();
+        if (tipo.equals("esqueleto")) return new Esqueleto();
+        return null;
+    }
+}</code></pre>
+            <h3>Uso</h3>
+            <pre><code>Enemigo e = EnemigoFactory.crear("zombie");
+System.out.println(e.nombre() + " (" + e.vida() + " hp)");</code></pre>
+            <h3>Beneficio</h3>
+            <p>Si mañana añades <code>Vampiro</code>, solo modificas <code>EnemigoFactory.crear</code>. El resto del código no cambia. Esto es <em>abierto a extensión, cerrado a modificación</em> (principio OCP).</p>
+            <div class="callout">
+              <strong>Disciplina:</strong> una fábrica bien hecha tiene UN punto de cambio cuando añades un nuevo tipo. Si añadir un nuevo subtipo requiere tocar 5 lugares del código, el diseño está mal.
+            </div>
+          `,
+          mission: `
+            <span class="mission-label">Misión</span>
+            <p>Define <code>abstract class Shape</code> con método abstracto <code>double area()</code>. Define <code>class Circulo extends Shape</code> (campo <code>double r</code>, constructor <code>Circulo(double r)</code>, <code>area()</code> = π·r²) y <code>class Cuadrado extends Shape</code> (campo <code>double lado</code>, constructor <code>Cuadrado(double l)</code>, <code>area()</code> = l²). Define <code>class ShapeFactory</code> con método estático <code>crear(String tipo, double valor)</code>: si tipo=="circulo" → <code>new Circulo(valor)</code>, si tipo=="cuadrado" → <code>new Cuadrado(valor)</code>. En <code>main</code>: <code>System.out.println(ShapeFactory.crear("circulo", 5).area())</code> y <code>System.out.println(ShapeFactory.crear("cuadrado", 4).area())</code>.</p>
+            <pre><code>78.53981633974483
+16.0</code></pre>
+          `,
+          starter: `public class Main {
+    public static void main(String[] args) {
+        // System.out.println(ShapeFactory.crear("circulo", 5).area());
+        // System.out.println(ShapeFactory.crear("cuadrado", 4).area());
+    }
+}
+
+abstract class Shape {
+    // abstract double area();
+}
+
+class Circulo extends Shape {
+    // double r;
+    // Circulo(double r) { this.r = r; }
+    // double area() { return Math.PI * r * r; }
+}
+
+class Cuadrado extends Shape {
+    // double lado;
+    // Cuadrado(double l) { this.lado = l; }
+    // double area() { return lado * lado; }
+}
+
+class ShapeFactory {
+    // static Shape crear(String tipo, double valor) {
+    //     if (tipo.equals("circulo")) return new Circulo(valor);
+    //     if (tipo.equals("cuadrado")) return new Cuadrado(valor);
+    //     return null;
+    // }
+}`,
+          hints: [
+            'El método abstracto area() en Shape se declara sin cuerpo: abstract double area();',
+            'Cada subclase implementa area() con su fórmula.',
+            'ShapeFactory.crear devuelve Shape (la clase base).'
+          ],
+          tests: [
+            { args: [], expected: lines('78.53981633974483', '16.0'), name: 'factory + polimorfismo' }
+          ]
+        },
+        {
+          id: '10.3', title: 'Builder — construir paso a paso',
+          theory: `
+            <h3>Constructor con muchos parámetros</h3>
+            <p>Cuando un objeto tiene muchos campos opcionales, el constructor se vuelve ilegible:</p>
+            <pre><code>Pizza p = new Pizza("gruesa", true, false, true, false, true);  // ¿qué significa cada true?</code></pre>
+            <p>El patrón <strong>Builder</strong> lo resuelve: una clase interna que va configurando el objeto con métodos encadenables, uno por cada campo opcional.</p>
+            <pre><code>class Pizza {
+    private String masa;
+    private boolean queso, tomate, jamon, champinones;
+    
+    private Pizza() {}
+    
+    static class Builder {
+        private Pizza p = new Pizza();
+        Builder masa(String m) { p.masa = m; return this; }
+        Builder queso() { p.queso = true; return this; }
+        Builder tomate() { p.tomate = true; return this; }
+        Builder jamon() { p.jamon = true; return this; }
+        Pizza build() { return p; }
+    }
+    
+    String describe() {
+        return "Pizza masa " + masa + " con " +
+               (queso ? "queso " : "") +
+               (tomate ? "tomate " : "") +
+               (jamon ? "jamón " : "");
+    }
+}</code></pre>
+            <h3>Uso encadenado</h3>
+            <pre><code>Pizza p = new Pizza.Builder()
+    .masa("fina")
+    .queso()
+    .tomate()
+    .build();
+System.out.println(p.describe());</code></pre>
+            <p>El truco del encadenamiento: cada método del Builder devuelve <code>this</code> para que puedas llamar al siguiente en la misma línea.</p>
+            <div class="callout">
+              <strong>Disciplina:</strong> el Builder es valioso cuando hay 4+ campos opcionales. Para 2 campos, un constructor normal es más simple. No apliques patrones a ciegas.
+            </div>
+          `,
+          mission: `
+            <span class="mission-label">Misión</span>
+            <p>Implementa una clase <code>Pizza</code> con builder. Campos: <code>String masa</code> (default "delgada"), <code>boolean queso</code>, <code>boolean tomate</code>. Builder con métodos <code>masa(String)</code>, <code>queso()</code>, <code>tomate()</code>, <code>build()</code> (todos devuelven Builder excepto build). Método <code>String describe()</code>: "Pizza masa [masa] con [queso ]?[tomate ]?" (con espacios donde toca, sin items extra si no están). En <code>main</code>, construye una pizza con masa "fina", con queso y tomate, e imprime su descripción.</p>
+            <pre><code>Pizza masa fina con queso tomate </code></pre>
+            <p>(La salida tiene un espacio final — es una simplificación aceptable.)</p>
+          `,
+          starter: `public class Main {
+    public static void main(String[] args) {
+        // Pizza p = new PizzaBuilder().masa("fina").queso().tomate().build();
+        // System.out.println(p.describe());
+    }
+}
+
+class Pizza {
+    // private String masa = "delgada";
+    // private boolean queso = false;
+    // private boolean tomate = false;
+    // private Pizza() {}
+    // String describe() {
+    //     return "Pizza masa " + masa + " con " + (queso ? "queso " : "") + (tomate ? "tomate " : "");
+    // }
+}
+
+class PizzaBuilder {
+    // private Pizza p = new Pizza();
+    // PizzaBuilder masa(String m) { p.masa = m; return this; }
+    // PizzaBuilder queso() { p.queso = true; return this; }
+    // PizzaBuilder tomate() { p.tomate = true; return this; }
+    // Pizza build() { return p; }
+}`,
+          hints: [
+            'Cada método del PizzaBuilder devuelve this (salvo build() que devuelve la Pizza).',
+            'El constructor de Pizza es private: en este intérprete no se valida, así que funciona igual desde PizzaBuilder.',
+            'El encadenamiento .masa("fina").queso().tomate().build() funciona porque cada método devuelve PizzaBuilder.'
+          ],
+          tests: [
+            { args: [], expected: line('Pizza masa fina con queso tomate '), name: 'builder encadenado' }
+          ]
+        }
+      ]
+    },
+
+    // ============================================================
+    // MÓDULO 11 — Competitivo (DMOJ-style)
+    // ============================================================
+    {
+      id: '11', name: 'Competitivo', subtitle: 'Programación competitiva (DMOJ-style)',
+      lessons: [
+        {
+          id: '11.1', title: 'A + B Sum',
+          theory: `
+            <h3>El problema más clásico</h3>
+            <p>El problema más básico de programación competitiva: dados dos enteros A y B, imprime su suma. Es el "Hola Mundo" de la OMI (Olimpiada Mexicana de Informática) y de DMOJ (<code>ccc01j1</code>-style).</p>
+            <h3>Formato de entrada/salida</h3>
+            <p>En competición, la entrada se lee desde <em>stdin</em> y se escribe en <em>stdout</em>. En aula·java simulamos stdin pasando cada token como un argumento: <code>args[0]</code> = primer número, <code>args[1]</code> = segundo, etc.</p>
+            <pre><code>public class Main {
+    public static void main(String[] args) {
+        int a = Integer.parseInt(args[0]);
+        int b = Integer.parseInt(args[1]);
+        System.out.println(a + b);
+    }
+}</code></pre>
+            <h3>Disciplina competitiva</h3>
+            <ul>
+              <li><strong>Lee</strong> con <code>Integer.parseInt(args[i])</code>.</li>
+              <li><strong>Escribe</strong> con <code>System.out.println(...)</code>. El juez compara la salida exactamente: respeta saltos de línea y espacios.</li>
+              <li><strong>Sin mensajes extra</strong>: no escribas "Ingrese A:" — el juez no interactúa, solo compara tu salida con la esperada.</li>
+            </ul>
+            <div class="callout">
+              <strong>Truco:</strong> en Java real para competición, se usa <code>Scanner</code> o <code>BufferedReader</code> para leer stdin. Aquí simplificamos con args[] para enfocarnos en el algoritmo.
+            </div>
+          `,
+          mission: `
+            <span class="mission-label">Misión</span>
+            <p>Lee dos enteros de args[0] y args[1], imprime su suma. El test pasa varios pares.</p>
+          `,
+          starter: `import java.util.*;
+
+public class Main {
+    public static void main(String[] args) {
+        // int a = Integer.parseInt(args[0]);
+        // int b = Integer.parseInt(args[1]);
+        // System.out.println(a + b);
+    }
+}`,
+          hints: [
+            'Dos parseInt: uno para args[0], otro para args[1].',
+            'System.out.println(a + b); imprime la suma.',
+            'No imprima nada más: el juez compara exactamente.'
+          ],
+          tests: [
+            { args: ['3', '5'], expected: line('8'), name: '3 + 5' },
+            { args: ['0', '0'], expected: line('0'), name: '0 + 0' },
+            { args: ['-5', '10'], expected: line('5'), name: '-5 + 10' },
+            { args: ['1000000', '1000000'], expected: line('2000000'), name: '1M + 1M' },
+            { args: ['-7', '-3'], expected: line('-10'), name: '-7 + -3' },
+            { args: () => [String(rint(-100, 100)), String(rint(-100, 100))], expected: (a) => line(parseInt(a[0]) + parseInt(a[1])), name: 'aleatorio', hidden: true },
+            { args: () => [String(rint(-100, 100)), String(rint(-100, 100))], expected: (a) => line(parseInt(a[0]) + parseInt(a[1])), name: 'aleatorio 2', hidden: true }
+          ]
+        },
+        {
+          id: '11.2', title: 'Sum de los primeros N',
+          theory: `
+            <h3>Suma de N números</h3>
+            <p>Variante común: la primera línea contiene N, las siguientes N líneas contienen los números a sumar. En args: <code>args[0]</code> = N, <code>args[1..N]</code> = los números.</p>
+            <pre><code>public class Main {
+    public static void main(String[] args) {
+        int n = Integer.parseInt(args[0]);
+        long suma = 0;
+        for (int i = 1; i &lt;= n; i++) {
+            suma += Integer.parseInt(args[i]);
+        }
+        System.out.println(suma);
+    }
+}</code></pre>
+            <h3>Por qué long y no int</h3>
+            <p>Si N = 100 y cada número es ~10⁶, la suma puede alcanzar 10⁸ (cabe en int). Pero si los números son ~10⁹, la suma puede alcanzar 10¹¹ (¡no cabe en int!). Usar <code>long</code> de entrada es una precaución estándar en competición.</p>
+            <p>En nuestro intérprete, los int se desbordan — obtenemos un error. Si usamos <code>long</code>... bueno, actualmente el intérprete trata <code>long</code> igual que <code>int</code> y aplica la misma verificación. Así que usaremos <code>double</code> si necesitamos sumas grandes, o aceptamos que las pruebas no lleguen a desbordar.</p>
+            <div class="callout">
+              <strong>Disciplina:</strong> en Java real, para sumas grandes usa <code>long</code> (10¹⁸) o <code>BigInteger</code> (arbitrario). Aquí, los tests están diseñados para no desbordar.
+            </div>
+          `,
+          mission: `
+            <span class="mission-label">Misión</span>
+            <p>args[0] = N. args[1..N] = N enteros. Imprime la suma total.</p>
+            <p>Ejemplo: args = ["3", "10", "20", "30"] → 60.</p>
+          `,
+          starter: `import java.util.*;
+
+public class Main {
+    public static void main(String[] args) {
+        // int n = Integer.parseInt(args[0]);
+        // int suma = 0;
+        // for (int i = 1; i <= n; i++) suma += Integer.parseInt(args[i]);
+        // System.out.println(suma);
+    }
+}`,
+          hints: [
+            'Empieza leyendo n = Integer.parseInt(args[0]).',
+            'Bucle for (int i = 1; i <= n; i++) — los números están en args[1..n].',
+            'Suma con Integer.parseInt(args[i]).'
+          ],
+          tests: [
+            { args: ['3', '10', '20', '30'], expected: line('60'), name: 'caso base' },
+            { args: ['1', '42'], expected: line('42'), name: 'un solo número' },
+            { args: ['5', '1', '2', '3', '4', '5'], expected: line('15'), name: '1+2+3+4+5' },
+            { args: ['4', '-5', '10', '-3', '8'], expected: line('10'), name: 'con negativos' },
+            { args: ['0'], expected: line('0'), name: 'N=0 (vacío)' },
+            {
+              args: () => {
+                const n = rint(5, 20);
+                const arr = [String(n)];
+                for (let i = 0; i < n; i++) arr.push(String(rint(-50, 50)));
+                return arr;
+              },
+              expected: (a) => {
+                const n = parseInt(a[0]);
+                let s = 0;
+                for (let i = 1; i <= n; i++) s += parseInt(a[i]);
+                return line(s);
+              },
+              name: 'aleatorio', hidden: true
+            }
+          ]
+        },
+        {
+          id: '11.3', title: 'GCD — Máximo común divisor',
+          theory: `
+            <h3>El algoritmo de Euclides</h3>
+            <p>El máximo común divisor (GCD) de dos enteros se calcula con el algoritmo de Euclides, hace 2300 años:</p>
+            <pre><code>static int gcd(int a, int b) {
+    while (b != 0) {
+        int t = b;
+        b = a % b;
+        a = t;
+    }
+    return a;
+}</code></pre>
+            <p>La idea: <code>gcd(a, b) = gcd(b, a % b)</code> hasta que <code>b = 0</code>. En ese punto, <code>a</code> es el GCD.</p>
+            <h3>Por qué funciona</h3>
+            <p>Si <code>d</code> divide a <code>a</code> y a <code>b</code>, también divide a <code>a - k·b</code> para cualquier <code>k</code>. Por tanto divide a <code>a % b</code>. Y viceversa. Así que el GCD de <code>(a, b)</code> es el mismo que el de <code>(b, a % b)</code>.</p>
+            <h3>Complejidad</h3>
+            <p>O(log(min(a, b))) — el algoritmo reduce los números geométricamente. Para 10⁹ tarda unas 30 iteraciones. Imbatible.</p>
+            <h3>LCM a partir de GCD</h3>
+            <p>El mínimo común múltiplo se obtiene con: <code>lcm(a, b) = a / gcd(a, b) * b</code> (la división primero evita overflow).</p>
+            <div class="callout">
+              <strong>Disciplina:</strong> aprende este algoritmo de memoria. Aparece una y otra vez: simplificar fracciones, alineación de eventos, criptografía RSA,problemas de "cuándo coinciden dos ciclos".
+            </div>
+          `,
+          mission: `
+            <span class="mission-label">Misión</span>
+            <p>Lee <code>a</code> y <code>b</code> de <code>args[0]</code> y <code>args[1]</code>. Imprime <code>gcd(a, b)</code>.</p>
+            <p>Ejemplos:</p>
+            <ul>
+              <li><code>12 8</code> → 4</li>
+              <li><code>15 25</code> → 5</li>
+              <li><code>17 5</code> → 1 (coprimos)</li>
+              <li><code>100 60</code> → 20</li>
+            </ul>
+          `,
+          starter: `public class Main {
+    // static int gcd(int a, int b) { ... }
+    
+    public static void main(String[] args) {
+        // int a = Integer.parseInt(args[0]);
+        // int b = Integer.parseInt(args[1]);
+        // System.out.println(gcd(a, b));
+    }
+}`,
+          hints: [
+            'while (b != 0) { int t = b; b = a % b; a = t; } return a;',
+            'El orden de a y b no importa: el algoritmo los normaliza.',
+            'gcd(0, n) = n; gcd(n, 0) = n; gcd(0, 0) = 0.'
+          ],
+          tests: [
+            { args: ['12', '8'], expected: line('4'), name: 'gcd(12,8)' },
+            { args: ['15', '25'], expected: line('5'), name: 'gcd(15,25)' },
+            { args: ['17', '5'], expected: line('1'), name: 'gcd(17,5) coprimos' },
+            { args: ['100', '60'], expected: line('20'), name: 'gcd(100,60)' },
+            { args: ['7', '7'], expected: line('7'), name: 'gcd(7,7) iguales' },
+            { args: ['1000000', '999999'], expected: line('1'), name: 'números grandes' },
+            {
+              args: () => [String(rint(1, 1000)), String(rint(1, 1000))],
+              expected: (a) => {
+                const g = (x, y) => { while (y) { [x, y] = [y, x % y]; } return x; };
+                return line(g(parseInt(a[0]), parseInt(a[1])));
+              },
+              name: 'aleatorio', hidden: true
+            }
+          ]
+        },
+        {
+          id: '11.4', title: 'Criba de Eratóstenes',
+          theory: `
+            <h3>Contar primos eficientemente</h3>
+            <p>Para listar todos los primos hasta N, la <strong>Criba de Eratóstenes</strong> es el algoritmo clásico. Marca múltiplos de cada primo encontrado.</p>
+            <pre><code>int n = Integer.parseInt(args[0]);
+boolean[] compuesto = new boolean[n + 1];
+for (int i = 2; i * i &lt;= n; i++) {
+    if (!compuesto[i]) {
+        for (int j = i * i; j &lt;= n; j += i) compuesto[j] = true;
+    }
+}
+int cuenta = 0;
+for (int i = 2; i &lt;= n; i++) if (!compuesto[i]) cuenta++;
+System.out.println(cuenta);</code></pre>
+            <h3>Por qué i*i y no i</h3>
+            <p>Si un número <code>k</code> tiene un divisor <code>d</code> con <code>d &gt; sqrt(k)</code>, entonces <code>k/d &lt; sqrt(k)</code> y ya estaría marcado por un primo menor. Por eso el bucle externo solo necesita ir hasta <code>sqrt(n)</code>.</p>
+            <h3>Por qué j empieza en i*i</h3>
+            <p>Los múltiplos menores que <code>i*i</code> (es decir, <code>2i, 3i, ..., (i-1)·i</code>) ya están marcados por primos anteriores (2, 3, ..., i-1). Empezar en <code>i*i</code> evita trabajo redundante.</p>
+            <h3>Complejidad</h3>
+            <p>O(n log log n) — casi lineal. Para <code>n = 10⁶</code>, unos pocos millones de operaciones.</p>
+            <div class="callout">
+              <strong>Disciplina:</strong> este es el algoritmo que más aparece en entrevistas y competiciones cuando se habla de primos. Aprende la justificación (i*i y sqrt) — es lo que lo hace elegante.
+            </div>
+          `,
+          mission: `
+            <span class="mission-label">Misión</span>
+            <p>Lee N de args[0]. Cuenta cuántos números primos hay del 2 al N (ambos incluidos) usando la Criba de Eratóstenes. Imprime la cuenta.</p>
+            <p>Ejemplos:</p>
+            <ul>
+              <li>N=10 → 4 (2,3,5,7)</li>
+              <li>N=20 → 8 (2,3,5,7,11,13,17,19)</li>
+              <li>N=100 → 25</li>
+              <li>N=1 → 0 (sin primos)</li>
+            </ul>
+          `,
+          starter: `public class Main {
+    public static void main(String[] args) {
+        // int n = Integer.parseInt(args[0]);
+        // boolean[] compuesto = new boolean[n + 1];
+        // for (int i = 2; i * i <= n; i++) {
+        //     if (!compuesto[i]) for (int j = i * i; j <= n; j += i) compuesto[j] = true;
+        // }
+        // int cuenta = 0;
+        // for (int i = 2; i <= n; i++) if (!compuesto[i]) cuenta++;
+        // System.out.println(cuenta);
+    }
+}`,
+          hints: [
+            'El array compuesto[i] es true si i NO es primo.',
+            'Bucle externo: for (int i = 2; i * i <= n; i++)',
+            'Bucle interno: marca j = i*i, i*i + i, i*i + 2i, ... hasta n.',
+            'Cuenta los que no son compuesto (compuesto[i] == false).'
+          ],
+          tests: [
+            { args: ['10'], expected: line('4'), name: 'primos hasta 10' },
+            { args: ['20'], expected: line('8'), name: 'primos hasta 20' },
+            { args: ['100'], expected: line('25'), name: 'primos hasta 100' },
+            { args: ['1'], expected: line('0'), name: 'N=1' },
+            { args: ['2'], expected: line('1'), name: 'N=2 (sólo el 2)' },
+            { args: ['50'], expected: line('15'), name: 'primos hasta 50' },
+            { args: ['1000'], expected: line('168'), name: 'primos hasta 1000' }
+          ]
+        },
+        {
+          id: '11.5', title: 'Kadane — Subarray de suma máxima',
+          theory: `
+            <h3>El problema</h3>
+            <p>Dado un array de enteros (positivos y negativos), encuentra la suma máxima de un subarray contiguo. Es un problema clásico (LeetCode 53, DMOJ varias).</p>
+            <p>Ejemplo: <code>[-2, 1, -3, 4, -1, 2, 1, -5, 4]</code> → la mejor subarray es <code>[4, -1, 2, 1]</code> con suma 6.</p>
+            <h3>El algoritmo de Kadane</h3>
+            <p>Idea: recorres el array manteniendo dos variables:</p>
+            <ul>
+              <li><code>maxAqui</code>: máxima suma de un subarray que <em>termina</em> en la posición actual.</li>
+              <li><code>maxGlobal</code>: máxima suma encontrada hasta ahora.</li>
+            </ul>
+            <pre><code>int[] nums = { -2, 1, -3, 4, -1, 2, 1, -5, 4 };
+int maxAqui = nums[0], maxGlobal = nums[0];
+for (int i = 1; i &lt; nums.length; i++) {
+    maxAqui = Math.max(nums[i], maxAqui + nums[i]);
+    maxGlobal = Math.max(maxGlobal, maxAqui);
+}
+System.out.println(maxGlobal);   // 6</code></pre>
+            <h3>Por qué funciona</h3>
+            <p>En cada posición, tienes dos opciones:</p>
+            <ol>
+              <li>Empezar un subarray nuevo en <code>nums[i]</code> (si <code>maxAqui + nums[i]</code> es peor que <code>nums[i]</code> solo).</li>
+              <li>Extender el subarray actual añadiendo <code>nums[i]</code>.</li>
+            </ol>
+            <p>Tomas el máximo de esos dos. Y te quedas con el máximo histórico.</p>
+            <h3>Complejidad</h3>
+            <p>O(n) — una sola pasada. Mejor imposible para este problema.</p>
+            <div class="callout">
+              <strong>Disciplina:</strong> Kadane es el ejemplo perfecto de programación dinámica (DP). La "tabla" DP se reduce a dos variables porque solo necesitas el valor anterior.
+            </div>
+          `,
+          mission: `
+            <span class="mission-label">Misión</span>
+            <p>Dado el array <code>int[] nums = {-2, 1, -3, 4, -1, 2, 1, -5, 4}</code>, usa el algoritmo de Kadane para encontrar e imprimir la suma máxima de un subarray contiguo.</p>
+            <pre><code>6</code></pre>
+          `,
+          starter: `public class Main {
+    public static void main(String[] args) {
+        int[] nums = {-2, 1, -3, 4, -1, 2, 1, -5, 4};
+        // int maxAqui = nums[0], maxGlobal = nums[0];
+        // for (int i = 1; i < nums.length; i++) {
+        //     maxAqui = Math.max(nums[i], maxAqui + nums[i]);
+        //     maxGlobal = Math.max(maxGlobal, maxAqui);
+        // }
+        // System.out.println(maxGlobal);
+    }
+}`,
+          hints: [
+            'maxAqui = Math.max(nums[i], maxAqui + nums[i]);',
+            'maxGlobal = Math.max(maxGlobal, maxAqui);',
+            'Empieza en i=1, no en i=0 (i=0 ya está inicializado).'
+          ],
+          tests: [
+            { args: [], expected: line('6'), name: 'array clásico → 6' },
+            { args: [], expected: line('6'), name: 'mismo array', hidden: true }
+          ]
+        },
+        {
+          id: '11.6', title: 'DP — Mínimo de monedas',
+          theory: `
+            <h3>Programación dinámica clásica</h3>
+            <p>Tienes monedas de valores <code>{1, 5, 10, 25}</code> y quieres dar cambio para una cantidad <code>C</code> usando el <strong>mínimo número de monedas</strong>. Es un problema clásico de DP.</p>
+            <h3>Idea recursiva</h3>
+            <p>Para una cantidad <code>c</code>, el mínimo es:</p>
+            <pre><code>minMonedas(c) = 0                          si c = 0
+              = 1 + min(minMonedas(c - v) for v in monedas si v &lt;= c)
+</code></pre>
+            <h3>Bottom-up DP</h3>
+            <p>En vez de recursión (que se repite mucho), construimos una tabla de 0 a C:</p>
+            <pre><code>int[] monedas = {1, 5, 10, 25};
+int C = Integer.parseInt(args[0]);
+int[] dp = new int[C + 1];
+for (int c = 1; c &lt;= C; c++) {
+    dp[c] = c;  // worst case: c monedas de 1
+    for (int m : monedas) {
+        if (m &lt;= c && dp[c - m] + 1 &lt; dp[c]) {
+            dp[c] = dp[c - m] + 1;
+        }
+    }
+}
+System.out.println(dp[C]);</code></pre>
+            <h3>Complejidad</h3>
+            <p>O(C × |monedas|). Para <code>C = 1000</code> y 4 monedas, son 4000 operaciones. Trivial.</p>
+            <h3>Si las monedas no son "canónicas"</h3>
+            <p>Para monedas generales (como <code>{1, 3, 4}</code>), un algoritmo voraz (greedy) puede fallar. Por eso DP es la solución universal.</p>
+            <div class="callout">
+              <strong>Disciplina:</strong> el truco del DP es identificar la <em>subestructura óptima</em>: la solución óptima del problema mayor se compone de soluciones óptimas de subproblemas menores. Si lo ves, aplica DP.
+            </div>
+          `,
+          mission: `
+            <span class="mission-label">Misión</span>
+            <p>Lee C de args[0]. Con monedas {1, 5, 10, 25}, imprime el mínimo número de monedas para dar cambio de C.</p>
+            <p>Ejemplos:</p>
+            <ul>
+              <li>C=0 → 0</li>
+              <li>C=7 → 3 (5+1+1)</li>
+              <li>C=15 → 2 (10+5)</li>
+              <li>C=30 → 2 (25+5)</li>
+              <li>C=100 → 4 (25+25+25+25)</li>
+            </ul>
+          `,
+          starter: `public class Main {
+    public static void main(String[] args) {
+        // int[] monedas = {1, 5, 10, 25};
+        // int C = Integer.parseInt(args[0]);
+        // int[] dp = new int[C + 1];
+        // for (int c = 1; c <= C; c++) {
+        //     dp[c] = c;
+        //     for (int m : monedas) {
+        //         if (m <= c && dp[c - m] + 1 < dp[c]) dp[c] = dp[c - m] + 1;
+        //     }
+        // }
+        // System.out.println(dp[C]);
+    }
+}`,
+          hints: [
+            'dp[c] guarda el mínimo de monedas para cambio c.',
+            'Inicializa dp[c] = c (peor caso: c monedas de 1).',
+            'Para cada moneda m, prueba si dp[c-m] + 1 mejora dp[c].',
+            'for (int m : monedas) es un for-each sobre el array.'
+          ],
+          tests: [
+            { args: ['0'], expected: line('0'), name: 'C=0' },
+            { args: ['7'], expected: line('3'), name: 'C=7 → 3' },
+            { args: ['15'], expected: line('2'), name: 'C=15 → 2' },
+            { args: ['30'], expected: line('2'), name: 'C=30 → 2' },
+            { args: ['100'], expected: line('4'), name: 'C=100 → 4' },
+            { args: ['25'], expected: line('1'), name: 'C=25 → 1' },
+            { args: ['13'], expected: line('4'), name: 'C=13 → 10+1+1+1' },
+            { args: ['99'], expected: line('9'), name: 'C=99 → 25*3 + 10*2 + 1*4 = 9' }
+          ]
+        }
+      ]
+    },
+
+    // ============================================================
+    // MÓDULO 12 — Minecraft & JVM Games
+    // ============================================================
+    {
+      id: '12', name: 'Minecraft & JVM Games', subtitle: 'Mods y juegos en la JVM',
+      lessons: [
+        {
+          id: '12.1', title: 'Tu primer mod: estructura',
+          theory: `
+            <h3>¿Qué es un mod de Minecraft?</h3>
+            <p>Un <em>mod</em> es código Java que se carga dentro de Minecraft (que corre en la JVM) para añadir o cambiar comportamiento. Los frameworks más conocidos son <strong>Forge</strong>, <strong>Fabric</strong> y <strong>Quilt</strong>. Todos siguen el mismo patrón:</p>
+            <ol>
+              <li>Una clase principal anotada con <code>@Mod("mi_mod_id")</code> (Forge) o que implementa <code>ModInitializer</code> (Fabric).</li>
+              <li>Métodos que se ejecutan en momentos concretos del ciclo de vida (INIT, COMMON_SETUP, etc.).</li>
+              <li>Registro de bloques, items, entidades, comandos, etc.</li>
+            </ol>
+            <h3>Simulación en aula·java</h3>
+            <p>No podemos cargar Minecraft aquí, pero podemos <em>simular</em> la estructura de un mod. Escribimos una clase que se comporta como un mod de verdad: tiene un <code>onInit()</code> que se llama al "cargar" el mod, registra items, etc.</p>
+            <pre><code>public class MiMod {
+    public void onInit() {
+        System.out.println("[MiMod] Cargado correctamente");
+    }
+}</code></pre>
+            <p>En el "cliente" (Main), creas una instancia del mod y llamas a su <code>onInit()</code>, como haría el cargador de mods real.</p>
+            <h3>El ecosistema JVM</h3>
+            <p>Minecraft corre en la JVM, lo que significa que cualquier lenguaje que compile a bytecode JVM (Java, Kotlin, Scala) puede escribir mods. La JVM es el <em>host</em>: carga tu código en runtime y lo ejecuta junto al juego. Por eso Java es tan importante en este nicho.</p>
+            <div class="callout">
+              <strong>Disciplina:</strong> aunque no puedas ejecutar Minecraft aquí, aprender la <em>estructura</em> de un mod es lo importante. Cuando abras Forge o Fabric con un IDE real, el patrón te será familiar.
+            </div>
+          `,
+          mission: `
+            <span class="mission-label">Misión</span>
+            <p>Define una clase <code>MiMod</code> con método <code>void onInit()</code> que imprima <code>[MiMod] Cargado</code>. En <code>main</code>, crea una instancia y llama a <code>onInit()</code>.</p>
+            <pre><code>[MiMod] Cargado</code></pre>
+          `,
+          starter: `public class Main {
+    public static void main(String[] args) {
+        // MiMod mod = new MiMod();
+        // mod.onInit();
+    }
+}
+
+class MiMod {
+    // void onInit() { System.out.println("[MiMod] Cargado"); }
+}`,
+          hints: [
+            'La clase MiMod tiene un método de instancia onInit() sin parámetros.',
+            'En main: new MiMod() crea el objeto; luego mod.onInit() lo llama.',
+            'El texto debe ser exactamente: [MiMod] Cargado'
+          ],
+          tests: [
+            { args: [], expected: line('[MiMod] Cargado'), name: 'mod carga correctamente' }
+          ]
+        },
+        {
+          id: '12.2', title: 'Eventos: cuando el jugador hace algo',
+          theory: `
+            <h3>El sistema de eventos</h3>
+            <p>Los mods de Minecraft funcionan principalmente <em>escuchando eventos</em>. Cuando el jugador rompe un bloque, se dispara un evento. Cuando un mob muere, otro evento. Cuando el día se hace noche, otro más.</p>
+            <p>En Forge se anota el método con <code>@SubscribeEvent</code> y se registra la clase. En Fabric se usa un callback. La estructura conceptual es la misma:</p>
+            <pre><code>class MiEventHandler {
+    void onBlockBreak(String blockName) {
+        System.out.println("Bloque roto: " + blockName);
+    }
+    void onPlayerDeath(String playerName) {
+        System.out.println(playerName + " ha caído");
+    }
+}</code></pre>
+            <h3>Simulación</h3>
+            <p>Aquí simulamos los eventos con métodos. En el main, "disparamos" los eventos manualmente llamando a los métodos, como haría el bus de eventos del juego real.</p>
+            <pre><code>MiEventHandler handler = new MiEventHandler();
+handler.onBlockBreak("stone");
+handler.onPlayerDeath("Steve");
+handler.onBlockBreak("diamond_ore");</code></pre>
+            <p>Salida:</p>
+            <pre><code>Bloque roto: stone
+Steve ha caído
+Bloque roto: diamond_ore</code></pre>
+            <h3>Por qué esto es poderoso</h3>
+            <p>El sistema de eventos te permite <strong>extender el juego sin modificar su código</strong>. Minecraft sigue siendo Minecraft; solo "escuchas" lo que pasa y reaccionas. Es el patrón <em>Observer</em> aplicado a un sistema enorme.</p>
+            <div class="callout">
+              <strong>Disciplina:</strong> en mods reales, los eventos son <em>caros</em>. No escribas código pesado en un evento que se dispara 60 veces por segundo (un tick). Si necesitas hacer trabajo, programa una tarea diferida.
+            </div>
+          `,
+          mission: `
+            <span class="mission-label">Misión</span>
+            <p>Define <code>class MiEventHandler</code> con método <code>void onBlockBreak(String block)</code> que imprime <code>"Bloque roto: " + block</code>. En <code>main</code>, crea un handler y dispara 3 eventos: "stone", "wood", "diamond_ore".</p>
+            <pre><code>Bloque roto: stone
+Bloque roto: wood
+Bloque roto: diamond_ore</code></pre>
+          `,
+          starter: `public class Main {
+    public static void main(String[] args) {
+        // MiEventHandler h = new MiEventHandler();
+        // h.onBlockBreak("stone");
+        // h.onBlockBreak("wood");
+        // h.onBlockBreak("diamond_ore");
+    }
+}
+
+class MiEventHandler {
+    // void onBlockBreak(String block) {
+    //     System.out.println("Bloque roto: " + block);
+    // }
+}`,
+          hints: [
+            'El método recibe un parámetro String con el nombre del bloque.',
+            'System.out.println("Bloque roto: " + block); concatena el texto fijo con el bloque.',
+            'Crea el handler con new MiEventHandler() y llama 3 veces a onBlockBreak.'
+          ],
+          tests: [
+            {
+              args: [],
+              expected: lines('Bloque roto: stone', 'Bloque roto: wood', 'Bloque roto: diamond_ore'),
+              name: 'tres eventos'
+            }
+          ]
+        },
+        {
+          id: '12.3', title: 'Comandos custom',
+          theory: `
+            <h3>Comandos en Minecraft</h3>
+            <p>Cuando escribes <code>/give @p diamond 5</code> en el chat, Minecraft invoca un comando. Los mods pueden registrar sus propios comandos. En Forge/Fabric se hace con brigadier, una librería de Mojang para construir árboles de comandos.</p>
+            <p>Aquí simulamos un comando simple: parseamos un string como <code>"dar diamante 5"</code> y ejecutamos la acción correspondiente.</p>
+            <pre><code>class CommandManager {
+    void execute(String input) {
+        String[] parts = input.split(" ");
+        String cmd = parts[0];
+        if (cmd.equals("dar")) {
+            String item = parts[1];
+            int cantidad = Integer.parseInt(parts[2]);
+            System.out.println("Dando " + cantidad + " de " + item);
+        } else if (cmd.equals("curar")) {
+            System.out.println("Vida restaurada");
+        } else {
+            System.out.println("Comando desconocido: " + cmd);
+        }
+    }
+}</code></pre>
+            <h3>Patrón Command</h3>
+            <p>Esta es una aplicación del patrón <strong>Command</strong>: encapsulas una petición como un objeto/método, con un gestor que despacha por nombre. En Minecraft real, cada comando tiene un nombre, un permiso, una lógica de validación y una lógica de ejecución.</p>
+            <h3>Por qué separar por split</h3>
+            <p>El chat no distingue tipos: todo es texto. Tú parses: primer token = nombre del comando, siguientes = argumentos. Si el arg debe ser entero, lo conviertes. Si es String, lo pasas tal cual.</p>
+            <div class="callout">
+              <strong>Disciplina:</strong> en comandos reales, valida siempre: que el jugador tenga permiso, que los argumentos sean válidos, que el objetivo exista. El "fail-fast" temprano evita bugs raros.
+            </div>
+          `,
+          mission: `
+            <span class="mission-label">Misión</span>
+            <p>Define <code>class CommandManager</code> con método <code>void execute(String input)</code>. Si input empieza con "dar ", extrae el item (parts[1]) y la cantidad (parts[2]) e imprime <code>"Dando [cantidad] de [item]"</code>. Si empieza con "curar", imprime <code>"Vida restaurada"</code>. En cualquier otro caso, imprime <code>"Comando desconocido"</code>. En <code>main</code>, ejecuta: "dar diamante 5", "curar", "volar".</p>
+            <pre><code>Dando 5 de diamante
+Vida restaurada
+Comando desconocido</code></pre>
+          `,
+          starter: `public class Main {
+    public static void main(String[] args) {
+        // CommandManager cm = new CommandManager();
+        // cm.execute("dar diamante 5");
+        // cm.execute("curar");
+        // cm.execute("volar");
+    }
+}
+
+class CommandManager {
+    // void execute(String input) {
+    //     String[] parts = input.split(" ");
+    //     String cmd = parts[0];
+    //     if (cmd.equals("dar")) {
+    //         String item = parts[1];
+    //         int cantidad = Integer.parseInt(parts[2]);
+    //         System.out.println("Dando " + cantidad + " de " + item);
+    //     } else if (cmd.equals("curar")) {
+    //         System.out.println("Vida restaurada");
+    //     } else {
+    //         System.out.println("Comando desconocido");
+    //     }
+    // }
+}`,
+          hints: [
+            'input.split(" ") divide el string por espacios; parts[0] es el comando.',
+            'parts[1] y parts[2] son los argumentos.',
+            'Usa .equals() para comparar Strings, no ==.'
+          ],
+          tests: [
+            {
+              args: [],
+              expected: lines('Dando 5 de diamante', 'Vida restaurada', 'Comando desconocido'),
+              name: 'tres comandos'
+            }
+          ]
+        },
+        {
+          id: '12.4', title: 'Game loop: ticks del juego',
+          theory: `
+            <h3>El corazón de cualquier juego</h3>
+            <p>Todo juego en la JVM (Minecraft incluido) tiene un <strong>game loop</strong>: un bucle que se ejecuta repetidamente, y en cada iteración (un <em>tick</em>):</p>
+            <ol>
+              <li>Procesa entradas (teclado, red).</li>
+              <li>Actualiza el estado del mundo (física, IA, lógica).</li>
+              <li>Renderiza (dibuja en pantalla).</li>
+            </ol>
+            <p>Minecraft corre a 20 ticks por segundo (50 ms por tick). Un tick mal programado que tarda 100 ms causa lag visible.</p>
+            <h3>Simulación</h3>
+            <p>Aquí simulamos 5 ticks de un juego simple. En cada tick, el "jugador" se mueve 1 unidad en X. Imprimimos el estado al final de cada tick.</p>
+            <pre><code>int tickCount = 0;
+double playerX = 0;
+while (tickCount &lt; 5) {
+    // 1. Update
+    playerX += 1.0;
+    tickCount++;
+    // 2. Render (simulado con println)
+    System.out.println("Tick " + tickCount + ": jugador en x=" + playerX);
+}</code></pre>
+            <h3>Time step fijo vs variable</h3>
+            <p>Minecraft usa <em>timestep fijo</em>: cada tick avanza la simulación 50 ms exactos, sin importar cuánto tarde en renderizarse. Esto hace la física determinista. Los juegos con timestep variable avanzan "el tiempo real transcurrido", lo que es más fluido pero puede causar bugs físicos si el framerate fluctúa.</p>
+            <div class="callout">
+              <strong>Disciplina:</strong> si tu juego tiene física, prefiere timestep fijo. Si es solo arcade casual, variable está bien. Nunca mezcles los dos en el mismo juego.
+            </div>
+          `,
+          mission: `
+            <span class="mission-label">Misión</span>
+            <p>Simula 5 ticks. En cada tick, el jugador avanza 2.5 unidades en x (empieza en 0). Imprime "Tick N: x=V" donde N es 1..5 y V es la posición acumulada. Formato exacto:</p>
+            <pre><code>Tick 1: x=2.5
+Tick 2: x=5.0
+Tick 3: x=7.5
+Tick 4: x=10.0
+Tick 5: x=12.5</code></pre>
+          `,
+          starter: `public class Main {
+    public static void main(String[] args) {
+        // int tick = 0;
+        // double x = 0;
+        // while (tick < 5) {
+        //     x += 2.5;
+        //     tick++;
+        //     System.out.println("Tick " + tick + ": x=" + x);
+        // }
+    }
+}`,
+          hints: [
+            'Bucle while (tick < 5) — 5 iteraciones.',
+            'Suma 2.5 en cada vuelta: x += 2.5;',
+            'Cuidado con el formato: "Tick " + tick + ": x=" + x — el espacio y los dos puntos.'
+          ],
+          tests: [
+            {
+              args: [],
+              expected: lines('Tick 1: x=2.5', 'Tick 2: x=5.0', 'Tick 3: x=7.5', 'Tick 4: x=10.0', 'Tick 5: x=12.5'),
+              name: '5 ticks de avance'
+            }
+          ]
+        },
+        {
+          id: '12.5', title: 'Estado del juego: Player con coords',
+          theory: `
+            <h3>Modelar el estado</h3>
+            <p>En un juego, los objetos tienen <strong>estado</strong> (posición, vida, inventario) y <strong>comportamiento</strong> (moverse, recibir daño, usar item). Esto se modela con clases: el estado son los campos, el comportamiento son los métodos.</p>
+            <pre><code>class Player {
+    private double x, y, z;
+    private int salud;
+    
+    Player(double x, double y, double z) {
+        this.x = x; this.y = y; this.z = z;
+        this.salud = 20;
+    }
+    
+    void mover(double dx, double dy, double dz) {
+        x += dx; y += dy; z += dz;
+    }
+    
+    void recibirDanio(int d) {
+        salud -= d;
+        if (salud &lt; 0) salud = 0;
+    }
+    
+    String posicion() {
+        return "(" + x + ", " + y + ", " + z + ")";
+    }
+    
+    int getSalud() { return salud; }
+}</code></pre>
+            <h3>Encapsulamiento en juegos</h3>
+            <p>Los campos <code>x, y, z, salud</code> son <code>private</code>. Si otra clase quiere modificarlos, debe usar <code>mover()</code> o <code>recibirDanio()</code>. Así puedes validar: por ejemplo, no permitir salud negativa, o limitar el movimiento dentro del mundo.</p>
+            <h3>Por qué esto es importante en mods</h3>
+            <p>Cuando escribes un mod, casi siempre modelas entidades nuevas (un mob, un item, un bloque custom). La estructura es la misma: clase con campos privados, constructor, métodos para mutar y consultar. Es POO pura aplicada a juegos.</p>
+            <div class="callout">
+              <strong>Disciplina:</strong> en mods reales, las entidades del juego (Player, Mob, Item) heredan de clases base de Minecraft. Pero la idea de "estado encapsulado + métodos públicos" sigue siendo la misma.
+            </div>
+          `,
+          mission: `
+            <span class="mission-label">Misión</span>
+            <p>Define <code>class Player</code> con campos <code>private double x, y, z</code> y <code>private int salud</code> (default 20). Constructor <code>Player(double x, double y, double z)</code>. Método <code>void mover(double dx, double dy, double dz)</code> que sume a las coords. Método <code>String posicion()</code> que devuelva <code>"(x, y, z)"</code> con comas y espacios. En <code>main</code>: crea <code>Player p = new Player(0, 64, 0)</code>, llama <code>p.mover(3.5, 0, -2.5)</code>, imprime <code>p.posicion()</code>.</p>
+            <pre><code>(3.5, 64.0, -2.5)</code></pre>
+          `,
+          starter: `public class Main {
+    public static void main(String[] args) {
+        // Player p = new Player(0, 64, 0);
+        // p.mover(3.5, 0, -2.5);
+        // System.out.println(p.posicion());
+    }
+}
+
+class Player {
+    // private double x, y, z;
+    // private int salud = 20;
+    // Player(double x, double y, double z) { this.x = x; this.y = y; this.z = z; }
+    // void mover(double dx, double dy, double dz) { x += dx; y += dy; z += dz; }
+    // String posicion() { return "(" + x + ", " + y + ", " + z + ")"; }
+}`,
+          hints: [
+            'Constructor con 3 parámetros (x, y, z).',
+            'mover(dx, dy, dz) suma a los campos.',
+            'posicion() usa concatenación con + y comas+espacios entre cada valor.',
+            'El 64 se convierte a 64.0 porque el campo es double.'
+          ],
+          tests: [
+            { args: [], expected: line('(3.5, 64.0, -2.5)'), name: 'posición tras moverse' }
+          ]
+        }
+      ]
     }
   ];
 
@@ -5066,6 +7548,7 @@ for (int i = 2; i &lt;= limite; i++) {
     const editor = $('#editor');
     editor.value = savedCode != null ? savedCode : ls.starter;
     updateLineNumbers();
+    updateHighlight();
 
     // nav buttons
     const prevId = curriculum.prevLessonId(id);
@@ -5091,25 +7574,47 @@ for (int i = 2; i &lt;= limite; i++) {
     }
   }
 
-  // ---- Editor: line numbers + auto-indent ----
+  // ---- Editor: line numbers + auto-indent + syntax highlight ----
   function updateLineNumbers() {
     const editor = $('#editor');
     const ln = $('#line-numbers');
     const lines = editor.value.split('\n').length;
-    let html = '';
-    for (let i = 1; i <= lines; i++) html += i + '\n';
-    ln.textContent = '';
-    ln.textContent = Array.from({length: lines}, (_, i) => i+1).join('\n');
-    // sync scroll
+    let s = '';
+    for (let i = 1; i <= lines; i++) s += i + '\n';
+    ln.textContent = s;
     ln.scrollTop = editor.scrollTop;
+  }
+
+  function updateHighlight() {
+    const editor = $('#editor');
+    const overlay = $('#highlight-overlay');
+    if (!overlay) return;
+    const code = editor.value;
+    let html;
+    try { html = global.highlightJava(code); }
+    catch (e) { html = escapeHtml(code) + '\n'; }
+    overlay.innerHTML = html;
+  }
+
+  function syncScroll() {
+    const editor = $('#editor');
+    const ln = $('#line-numbers');
+    const overlay = $('#highlight-overlay');
+    if (ln) ln.scrollTop = editor.scrollTop;
+    if (overlay) {
+      overlay.scrollTop = editor.scrollTop;
+      overlay.scrollLeft = editor.scrollLeft;
+    }
   }
 
   function setupEditor() {
     const editor = $('#editor');
     editor.addEventListener('input', () => {
       updateLineNumbers();
+      updateHighlight();
       if (currentLesson) state.saveCode(currentLesson.id, editor.value);
     });
+    editor.addEventListener('scroll', syncScroll);
     editor.addEventListener('keydown', (e) => {
       // Tab inserts 4 spaces
       if (e.key === 'Tab') {
@@ -5119,7 +7624,8 @@ for (int i = 2; i &lt;= limite; i++) {
         editor.value = editor.value.substring(0, start) + '    ' + editor.value.substring(end);
         editor.selectionStart = editor.selectionEnd = start + 4;
         updateLineNumbers();
-        state.saveCode(currentLesson.id, editor.value);
+        updateHighlight();
+        if (currentLesson) state.saveCode(currentLesson.id, editor.value);
       }
       // Ctrl+Enter to run
       if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
@@ -5140,12 +7646,10 @@ for (int i = 2; i &lt;= limite; i++) {
           editor.value = editor.value.substring(0, start) + insert + editor.value.substring(editor.selectionEnd);
           editor.selectionStart = editor.selectionEnd = start + insert.length;
           updateLineNumbers();
-          state.saveCode(currentLesson.id, editor.value);
+          updateHighlight();
+          if (currentLesson) state.saveCode(currentLesson.id, editor.value);
         }
       }
-    });
-    editor.addEventListener('scroll', () => {
-      $('#line-numbers').scrollTop = editor.scrollTop;
     });
     // Format button (basic re-indent)
     $('#btn-format').addEventListener('click', () => {
@@ -5153,6 +7657,7 @@ for (int i = 2; i &lt;= limite; i++) {
       const formatted = formatJava(code);
       editor.value = formatted;
       updateLineNumbers();
+      updateHighlight();
       if (currentLesson) state.saveCode(currentLesson.id, editor.value);
       toast('Código formateado', 'info', 1500);
     });
