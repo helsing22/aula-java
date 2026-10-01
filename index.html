@@ -560,8 +560,8 @@ kbd {
   background: var(--bg-input);
 }
 .line-numbers {
-  width: 48px;
-  padding: 10px 8px 10px 0;
+  width: 56px;
+  padding: 10px 12px 10px 0;
   text-align: right;
   font-family: var(--font-mono);
   font-size: 13px;
@@ -573,11 +573,17 @@ kbd {
   flex-shrink: 0;
   white-space: pre;
   border-right: 1px solid var(--border-soft);
+  position: relative;
+  z-index: 3;
+}
+.line-numbers .ln-current {
+  color: var(--text-bright);
+  font-weight: 600;
 }
 .highlight-overlay {
   position: absolute;
   top: 0;
-  left: 48px;
+  left: 56px;
   right: 0;
   bottom: 0;
   padding: 10px 12px;
@@ -596,6 +602,23 @@ kbd {
   letter-spacing: 0;
   word-spacing: 0;
   border: 0;
+}
+/* current line highlight (VS Code style) */
+.line-highlight-overlay {
+  position: absolute;
+  top: 10px;
+  left: 56px;
+  right: 0;
+  height: 19.5px;
+  background: rgba(255, 255, 255, 0.04);
+  border-left: 2px solid rgba(255, 255, 255, 0.18);
+  pointer-events: none;
+  z-index: 0;
+  transition: top 60ms ease;
+  display: none;
+}
+.editor-wrap.editor-focused .line-highlight-overlay {
+  display: block;
 }
 .editor {
   position: relative;
@@ -620,24 +643,101 @@ kbd {
   letter-spacing: 0;
   word-spacing: 0;
 }
-.editor::-webkit-scrollbar { width: 10px; height: 10px; }
-.editor::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+.editor::-webkit-scrollbar { width: 12px; height: 12px; }
+.editor::-webkit-scrollbar-thumb { background: rgba(139,148,158,0.4); border-radius: 6px; border: 3px solid transparent; background-clip: padding-box; }
+.editor::-webkit-scrollbar-thumb:hover { background: rgba(139,148,158,0.7); border: 3px solid transparent; background-clip: padding-box; }
 .editor::-webkit-scrollbar-track { background: transparent; }
-.editor::selection { background: rgba(16,185,129,0.25); }
+.editor::selection { background: rgba(56, 189, 248, 0.25); }
+.editor:focus { outline: none; }
 
-/* ---- Syntax highlight tokens ---- */
-.tok-kw   { color: #ff7b72; font-weight: 600; }
-.tok-type { color: #ffa657; }
-.tok-str  { color: #a5d6ff; }
-.tok-num  { color: #79c0ff; }
-.tok-com  { color: #6e7681; font-style: italic; }
-.tok-fn   { color: #d2a8ff; }
-.tok-ann  { color: #f0883e; font-weight: 600; }
-.tok-op   { color: #ff7b72; }
-.tok-bool { color: #79c0ff; font-weight: 600; }
-.tok-punct { color: var(--text-dim); }
-.tok-ident { color: var(--text); }
-.tok-class-ref { color: #ffa657; font-weight: 500; }
+/* ---- VS Code Dark+ syntax palette ---- */
+.tok-kw   { color: #569cd6; font-weight: 500; }       /* keywords: blue */
+.tok-type { color: #4ec9b0; }                          /* primitive types: teal */
+.tok-class-ref { color: #4ec9b0; }                     /* class refs: teal */
+.tok-str  { color: #ce9178; }                          /* strings: orange */
+.tok-num  { color: #b5cea8; }                          /* numbers: light green */
+.tok-com  { color: #6a9955; font-style: italic; }      /* comments: green */
+.tok-fn   { color: #dcdcaa; }                          /* method names: yellow */
+.tok-ann  { color: #dcdcaa; font-weight: 500; }        /* annotations */
+.tok-op   { color: #d4d4d4; }                           /* operators: light gray */
+.tok-bool { color: #569cd6; }                          /* true/false/null */
+.tok-punct { color: #d4d4d4; }                         /* punctuation */
+.tok-ident { color: #9cdcfe; }                         /* identifiers: light blue */
+.tok-this { color: #569cd6; font-style: italic; }      /* this/super */
+
+/* ---- Autocomplete popup ---- */
+.autocomplete-popup {
+  position: absolute;
+  z-index: 50;
+  background: #252526;
+  border: 1px solid #454545;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  max-height: 240px;
+  overflow-y: auto;
+  min-width: 220px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: #d4d4d4;
+  display: none;
+}
+.autocomplete-popup.visible { display: block; }
+.autocomplete-item {
+  padding: 4px 10px 4px 22px;
+  cursor: pointer;
+  position: relative;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  white-space: nowrap;
+}
+.autocomplete-item:hover, .autocomplete-item.selected {
+  background: #04395e;
+  color: #fff;
+}
+.autocomplete-item .ac-kind {
+  position: absolute;
+  left: 4px;
+  top: 4px;
+  width: 14px;
+  font-size: 10px;
+  text-align: center;
+  font-weight: 700;
+  color: #dcdcaa;
+  border-radius: 2px;
+}
+.autocomplete-item .ac-kind.k-kw   { color: #569cd6; }
+.autocomplete-item .ac-kind.k-type { color: #4ec9b0; }
+.autocomplete-item .ac-kind.k-fn   { color: #dcdcaa; }
+.autocomplete-item .ac-kind.k-snippet { color: #c586c0; }
+.autocomplete-item .ac-kind.k-field { color: #9cdcfe; }
+.autocomplete-item .ac-kind.k-var  { color: #9cdcfe; }
+.autocomplete-item .ac-label { color: inherit; }
+.autocomplete-item .ac-detail {
+  color: #6a9955;
+  font-size: 11px;
+  margin-left: 8px;
+  font-style: italic;
+}
+.autocomplete-popup::-webkit-scrollbar { width: 8px; }
+.autocomplete-popup::-webkit-scrollbar-thumb { background: #454545; border-radius: 4px; }
+
+/* ---- Status bar (VS Code style bottom strip) ---- */
+.status-bar {
+  height: 22px;
+  background: #1e1e1e;
+  color: var(--text-dim);
+  font-size: 11px;
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  gap: 16px;
+  border-top: 1px solid #2d2d2d;
+}
+.status-bar .sb-section { display: flex; align-items: center; gap: 6px; }
+.status-bar .sb-section.right { margin-left: auto; }
+.status-bar .sb-lang { color: var(--accent); }
+.status-bar .sb-rowcol { font-family: var(--font-mono); }
 
 /* ===== Console + tests ===== */
 .console-tabs {
@@ -960,8 +1060,10 @@ kbd {
         </div>
         <div class="editor-wrap">
           <div id="line-numbers" class="line-numbers" aria-hidden="true"></div>
+          <div id="line-highlight-overlay" class="line-highlight-overlay" aria-hidden="true"></div>
           <pre id="highlight-overlay" class="highlight-overlay" aria-hidden="true"></pre>
           <textarea id="editor" class="editor" spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off"></textarea>
+          <div id="autocomplete-popup" class="autocomplete-popup" role="listbox" aria-hidden="true"></div>
         </div>
         <div class="console-tabs">
           <button class="tab-btn active" data-tab="console">Consola</button>
@@ -970,6 +1072,15 @@ kbd {
         <div class="console-area">
           <pre id="console" class="console" aria-label="Salida del programa"></pre>
           <div id="tests-panel" class="tests-panel hidden"></div>
+        </div>
+        <div class="status-bar">
+          <div class="sb-section"><span class="sb-lang">Java</span></div>
+          <div class="sb-section"><span id="sb-indent">Espacios: 4</span></div>
+          <div class="sb-section"><span id="sb-encoding">UTF-8</span></div>
+          <div class="sb-section right">
+            <span class="sb-rowcol" id="sb-rowcol">Ln 1, Col 1</span>
+            <span id="sb-sel"></span>
+          </div>
         </div>
       </section>
     </div>
@@ -2500,7 +2611,11 @@ kbd {
       const elements = [];
       while (!at('OP', '}')) {
         if (at('EOF')) err('inicializador de array sin cerrar');
-        elements.push(parseExpression());
+        if (at('OP', '{')) {
+          elements.push(parseArrayInit());
+        } else {
+          elements.push(parseExpression());
+        }
         if (at('OP', ',')) next();
         else break;
       }
@@ -3318,7 +3433,16 @@ kbd {
       let elem = 'int';
       if (data.length > 0) {
         const t = data[0].vtype;
-        if (t === 'String') elem = 'String';
+        if (t && t.endsWith('[]')) {
+          // nested array: outer element type is the inner element type
+          // e.g. {{1,2}, {3,4}} has outer type 'int' (because each element is int[])
+          // we keep the inner element type (int) for the outer array,
+          // because our model collapses multi-dim arrays to a single elem type
+          // with nested arrNode values.
+          elem = t.slice(0, -2);
+          // but the outer array's element type is the inner's element type,
+          // which is what we want for arrNode(elem, data)
+        } else if (t === 'String') elem = 'String';
         else if (t === 'double') elem = 'double';
         else if (t === 'boolean') elem = 'boolean';
         else if (t === 'char') elem = 'char';
@@ -3347,13 +3471,23 @@ kbd {
       if (node.init) {
         return this.evalExpr(node.init, env);
       }
-      // single-dim default-initialized array
+      // Build multi-dim array recursively. Each level is an array of either:
+      //   - inner arrays (if there are more dims below), or
+      //   - default values (if this is the last dim).
       const elem = node.vtype.base;
-      const data = [];
-      for (let i = 0; i < sizes[0]; i++) {
-        data.push(defaultValue({ base: elem, dims: numDims - 1 }));
-      }
-      return arrNode(elem, data);
+      const buildLevel = (level, totalDims) => {
+        if (level >= totalDims) return defaultValue({ base: elem, dims: 0 });
+        const size = sizes[level];
+        if (size === null) return valueNode('null', null);
+        const data = [];
+        for (let i = 0; i < size; i++) {
+          const child = buildLevel(level + 1, totalDims);
+          // if child is a primitive default value, push as node; if it's an array, push as arr node
+          data.push(child);
+        }
+        return arrNode(elem, data);
+      };
+      return buildLevel(0, numDims);
     }
 
     evalArrayAccess(node, env) {
@@ -4251,7 +4385,9 @@ kbd {
         const isMethodCall = code[k] === '(';
 
         let cls = null;
-        if (KEYWORDS.has(word)) {
+        if (word === 'this' || word === 'super') {
+          cls = 'tok-this';
+        } else if (KEYWORDS.has(word)) {
           cls = 'tok-kw';
         } else if (TYPE_PRIMITIVES.has(word)) {
           cls = 'tok-type';
@@ -4269,7 +4405,8 @@ kbd {
         if (cls) {
           html += '<span class="' + cls + '">' + escapeHtml(word) + '</span>';
         } else {
-          html += escapeHtml(word);
+          // Regular identifier — light blue (VS Code Dark+)
+          html += '<span class="tok-ident">' + escapeHtml(word) + '</span>';
         }
         i = j;
         continue;
@@ -4313,6 +4450,365 @@ kbd {
   }
 
   global.highlightJava = highlightJava;
+})(window);
+
+
+/* === autocomplete.js === */
+/* ============================================================
+   aula·java — autocomplete.js
+   Autocompletado, snippets, bracket auto-closing, smart Enter.
+   ============================================================ */
+(function (global) {
+  'use strict';
+
+  // ---- Java keyword list (for autocomplete) ----
+  const KEYWORDS = [
+    'class', 'public', 'static', 'void', 'int', 'long', 'double', 'float',
+    'boolean', 'char', 'byte', 'short', 'String', 'StringBuilder',
+    'return', 'if', 'else', 'while', 'for', 'do', 'switch', 'case',
+    'break', 'continue', 'new', 'this', 'super', 'final', 'default',
+    'extends', 'implements', 'import', 'package', 'instanceof',
+    'private', 'protected', 'abstract', 'interface', 'enum',
+    'true', 'false', 'null'
+  ];
+
+  const TYPES = [
+    'int', 'long', 'double', 'float', 'boolean', 'char', 'byte', 'short',
+    'void', 'String', 'StringBuilder', 'Object', 'Integer', 'Double',
+    'ArrayList', 'HashMap', 'HashSet', 'Math', 'Arrays', 'System',
+    'Character', 'List', 'Map', 'Set'
+  ];
+
+  const COMMON_METHODS = [
+    // System.out
+    { label: 'System.out.println', kind: 'fn', detail: '(x) -> void' },
+    { label: 'System.out.print', kind: 'fn', detail: '(x) -> void' },
+    { label: 'System.out.printf', kind: 'fn', detail: '(fmt, args) -> void' },
+    // String methods
+    { label: 'length', kind: 'fn', detail: 'String.length() -> int' },
+    { label: 'charAt', kind: 'fn', detail: 'String.charAt(int) -> char' },
+    { label: 'equals', kind: 'fn', detail: 'String.equals(Object) -> boolean' },
+    { label: 'equalsIgnoreCase', kind: 'fn', detail: '(...) -> boolean' },
+    { label: 'compareTo', kind: 'fn', detail: 'String.compareTo(String) -> int' },
+    { label: 'substring', kind: 'fn', detail: '(int [, int]) -> String' },
+    { label: 'indexOf', kind: 'fn', detail: '(String/char [, int]) -> int' },
+    { label: 'toUpperCase', kind: 'fn', detail: '() -> String' },
+    { label: 'toLowerCase', kind: 'fn', detail: '() -> String' },
+    { label: 'trim', kind: 'fn', detail: '() -> String' },
+    { label: 'split', kind: 'fn', detail: '(String) -> String[]' },
+    { label: 'replace', kind: 'fn', detail: '(char, char) -> String' },
+    { label: 'contains', kind: 'fn', detail: '(CharSeq) -> boolean' },
+    { label: 'startsWith', kind: 'fn', detail: '(String) -> boolean' },
+    { label: 'endsWith', kind: 'fn', detail: '(String) -> boolean' },
+    { label: 'isEmpty', kind: 'fn', detail: '() -> boolean' },
+    { label: 'toCharArray', kind: 'fn', detail: '() -> char[]' },
+    // StringBuilder
+    { label: 'append', kind: 'fn', detail: 'StringBuilder.append(x)' },
+    { label: 'reverse', kind: 'fn', detail: 'StringBuilder.reverse()' },
+    { label: 'toString', kind: 'fn', detail: '() -> String' },
+    // Math
+    { label: 'Math.abs', kind: 'fn', detail: '(num) -> num' },
+    { label: 'Math.max', kind: 'fn', detail: '(a, b) -> num' },
+    { label: 'Math.min', kind: 'fn', detail: '(a, b) -> num' },
+    { label: 'Math.sqrt', kind: 'fn', detail: '(double) -> double' },
+    { label: 'Math.pow', kind: 'fn', detail: '(double, double) -> double' },
+    { label: 'Math.floor', kind: 'fn', detail: '(double) -> double' },
+    { label: 'Math.ceil', kind: 'fn', detail: '(double) -> double' },
+    { label: 'Math.round', kind: 'fn', detail: '(double) -> long' },
+    { label: 'Math.random', kind: 'fn', detail: '() -> double' },
+    { label: 'Math.PI', kind: 'field', detail: 'double' },
+    { label: 'Math.E', kind: 'field', detail: 'double' },
+    // Integer / Double
+    { label: 'Integer.parseInt', kind: 'fn', detail: '(String) -> int' },
+    { label: 'Integer.toString', kind: 'fn', detail: '(int) -> String' },
+    { label: 'Integer.MAX_VALUE', kind: 'field', detail: 'int = 2147483647' },
+    { label: 'Integer.MIN_VALUE', kind: 'field', detail: 'int = -2147483648' },
+    { label: 'Double.parseDouble', kind: 'fn', detail: '(String) -> double' },
+    { label: 'Double.MAX_VALUE', kind: 'field', detail: 'double' },
+    // Arrays
+    { label: 'Arrays.toString', kind: 'fn', detail: '(array) -> String' },
+    { label: 'Arrays.sort', kind: 'fn', detail: '(array) -> void' },
+    { label: 'Arrays.binarySearch', kind: 'fn', detail: '(array, key) -> int' },
+    { label: 'Arrays.fill', kind: 'fn', detail: '(array, val) -> void' },
+    // ArrayList
+    { label: 'add', kind: 'fn', detail: 'ArrayList.add(x) -> boolean' },
+    { label: 'get', kind: 'fn', detail: 'ArrayList.get(int) -> T' },
+    { label: 'set', kind: 'fn', detail: 'ArrayList.set(int, T) -> T' },
+    { label: 'remove', kind: 'fn', detail: 'ArrayList.remove(int) -> T' },
+    { label: 'size', kind: 'fn', detail: 'ArrayList.size() -> int' },
+    { label: 'isEmpty', kind: 'fn', detail: '() -> boolean' },
+    { label: 'contains', kind: 'fn', detail: '(Object) -> boolean' },
+    { label: 'indexOf', kind: 'fn', detail: '(Object) -> int' },
+    { label: 'clear', kind: 'fn', detail: '() -> void' },
+    // HashMap
+    { label: 'put', kind: 'fn', detail: 'HashMap.put(K, V) -> V' },
+    { label: 'get', kind: 'fn', detail: 'HashMap.get(K) -> V' },
+    { label: 'getOrDefault', kind: 'fn', detail: '(K, V) -> V' },
+    { label: 'containsKey', kind: 'fn', detail: '(K) -> boolean' },
+    { label: 'keySet', kind: 'fn', detail: '() -> Set<K>' },
+    { label: 'values', kind: 'fn', detail: '() -> Collection<V>' },
+    // Character
+    { label: 'Character.isDigit', kind: 'fn', detail: '(char) -> boolean' },
+    { label: 'Character.isLetter', kind: 'fn', detail: '(char) -> boolean' },
+    { label: 'Character.isUpperCase', kind: 'fn', detail: '(char) -> boolean' },
+    { label: 'Character.isLowerCase', kind: 'fn', detail: '(char) -> boolean' },
+    { label: 'Character.toUpperCase', kind: 'fn', detail: '(char) -> char' },
+    { label: 'Character.toLowerCase', kind: 'fn', detail: '(char) -> char' },
+    // control flow
+    { label: 'println', kind: 'fn', detail: '(...)' }
+  ];
+
+  // ---- Code snippets (IntelliSense-style) ----
+  // Each snippet has `prefix`, `body`, `description`, and an optional `tabStops` array
+  // of [start, length] positions in the body where Tab should move the cursor.
+  // For simplicity, we use ${1:placeholder} syntax like VS Code and parse it on insert.
+  const SNIPPETS = [
+    {
+      prefix: 'psvm',
+      label: 'psvm',
+      kind: 'snippet',
+      detail: 'public static void main(String[] args)',
+      body: 'public static void main(String[] args) {\n    ${1:// TODO}\n}'
+    },
+    {
+      prefix: 'sout',
+      label: 'sout',
+      kind: 'snippet',
+      detail: 'System.out.println(...)',
+      body: 'System.out.println(${1:x});'
+    },
+    {
+      prefix: 'souf',
+      label: 'souf',
+      kind: 'snippet',
+      detail: 'System.out.printf(...)',
+      body: 'System.out.printf("${1:format}", ${2:args});'
+    },
+    {
+      prefix: 'fori',
+      label: 'fori',
+      kind: 'snippet',
+      detail: 'for (int i = 0; i < ...; i++)',
+      body: 'for (int i = 0; i < ${1:n}; i++) {\n    ${2:// body}\n}'
+    },
+    {
+      prefix: 'foreach',
+      label: 'foreach',
+      kind: 'snippet',
+      detail: 'for (Type x : collection)',
+      body: 'for (${1:int} ${2:x} : ${3:coll}) {\n    ${4:// body}\n}'
+    },
+    {
+      prefix: 'while',
+      label: 'while',
+      kind: 'snippet',
+      detail: 'while (cond) { ... }',
+      body: 'while (${1:cond}) {\n    ${2:// body}\n}'
+    },
+    {
+      prefix: 'if',
+      label: 'if',
+      kind: 'snippet',
+      detail: 'if (cond) { ... }',
+      body: 'if (${1:cond}) {\n    ${2:// body}\n}'
+    },
+    {
+      prefix: 'else',
+      label: 'else',
+      kind: 'snippet',
+      detail: 'else { ... }',
+      body: 'else {\n    ${1:// body}\n}'
+    },
+    {
+      prefix: 'elseif',
+      label: 'elseif',
+      kind: 'snippet',
+      detail: 'else if (cond) { ... }',
+      body: 'else if (${1:cond}) {\n    ${2:// body}\n}'
+    },
+    {
+      prefix: 'switch',
+      label: 'switch',
+      kind: 'snippet',
+      detail: 'switch (x) { case ... }',
+      body: 'switch (${1:x}) {\n    case ${2:1}:\n        ${3:// body}\n        break;\n    default:\n        ${4:// default}\n}'
+    },
+    {
+      prefix: 'try',
+      label: 'try',
+      kind: 'snippet',
+      detail: 'try { ... } catch (e) { ... }',
+      body: 'try {\n    ${1:// body}\n} catch (Exception e) {\n    ${2:// handler}\n}'
+    },
+    {
+      prefix: 'class',
+      label: 'class',
+      kind: 'snippet',
+      detail: 'class Name { ... }',
+      body: 'class ${1:Name} {\n    ${2:// fields and methods}\n}'
+    },
+    {
+      prefix: 'main',
+      label: 'main',
+      kind: 'snippet',
+      detail: 'public static void main(String[] args)',
+      body: 'public static void main(String[] args) {\n    ${1:// TODO}\n}'
+    },
+    {
+      prefix: 'newarray',
+      label: 'new int[n]',
+      kind: 'snippet',
+      detail: 'new Type[size]',
+      body: 'new ${1:int}[${2:n}]'
+    },
+    {
+      prefix: 'new2d',
+      label: 'new int[r][c]',
+      kind: 'snippet',
+      detail: '2D array',
+      body: 'new ${1:int}[${2:rows}][${3:cols}]'
+    },
+    {
+      prefix: 'list',
+      label: 'ArrayList<...>',
+      kind: 'snippet',
+      detail: 'ArrayList<T> list = new ArrayList<T>()',
+      body: 'ArrayList<${1:Integer}> ${2:list} = new ArrayList<${1:Integer}>();'
+    },
+    {
+      prefix: 'map',
+      label: 'HashMap<K, V>',
+      kind: 'snippet',
+      detail: 'HashMap<K, V> map = new HashMap<K, V>()',
+      body: 'HashMap<${1:String}, ${2:Integer}> ${3:map} = new HashMap<${1:String}, ${2:Integer}>();'
+    },
+    {
+      prefix: 'set',
+      label: 'HashSet<T>',
+      kind: 'snippet',
+      detail: 'HashSet<T> set = new HashSet<T>()',
+      body: 'HashSet<${1:Integer}> ${2:set} = new HashSet<${1:Integer}>();'
+    },
+    {
+      prefix: 'sb',
+      label: 'StringBuilder',
+      kind: 'snippet',
+      detail: 'StringBuilder sb = new StringBuilder()',
+      body: 'StringBuilder ${1:sb} = new StringBuilder();'
+    }
+  ];
+
+  // ---- All completion items ----
+  const ALL_ITEMS = [];
+
+  // Add keywords
+  for (const k of KEYWORDS) {
+    ALL_ITEMS.push({ label: k, kind: 'kw', detail: 'keyword' });
+  }
+  // Add types
+  for (const t of TYPES) {
+    ALL_ITEMS.push({ label: t, kind: 'type', detail: 'type' });
+  }
+  // Add common methods
+  for (const m of COMMON_METHODS) {
+    ALL_ITEMS.push({ label: m.label, kind: m.kind || 'fn', detail: m.detail || '' });
+  }
+  // Add snippets
+  for (const s of SNIPPETS) {
+    ALL_ITEMS.push({ label: s.label, kind: 'snippet', detail: s.detail, snippet: s });
+  }
+
+  // ---- Helpers ----
+  // Find the word (sequence of [A-Za-z0-9_.$]) at the end of the given text,
+  // returning { word, start, end } relative to the text.
+  function wordAtCursor(text, cursorPos) {
+    const before = text.substring(0, cursorPos);
+    const m = before.match(/[A-Za-z0-9_$.]*$/);
+    if (!m) return { word: '', start: cursorPos, end: cursorPos };
+    const w = m[0];
+    return { word: w, start: cursorPos - w.length, end: cursorPos };
+  }
+
+  // Check if a character is "word-like"
+  function isWordChar(c) {
+    return c && (/[A-Za-z0-9_$.]/.test(c));
+  }
+
+  // Filter items by prefix
+  function filterItems(prefix) {
+    if (!prefix) return ALL_ITEMS.slice(0, 50);
+    const p = prefix.toLowerCase();
+    // Score: exact match (highest), startsWith, contains.
+    const scored = ALL_ITEMS
+      .map(it => {
+        const l = it.label.toLowerCase();
+        let score = 0;
+        if (l === p) score = 100;
+        else if (l.startsWith(p)) score = 80 - (l.length - p.length);
+        else if (l.includes(p)) score = 50 - (l.indexOf(p) + (l.length - p.length));
+        else return null;
+        return { it, score };
+      })
+      .filter(x => x !== null)
+      .sort((a, b) => b.score - a.score);
+    return scored.slice(0, 20).map(s => s.it);
+  }
+
+  // Insert a snippet body, returning the position of the first tab stop (or null)
+  // We use the ${1:placeholder} / ${1} syntax. After insertion the cursor moves
+  // to the first placeholder; subsequent Tab presses cycle through them.
+  function expandSnippet(body, editor) {
+    const start = editor.selectionStart;
+    const end = editor.selectionEnd;
+    // Parse tab stops out of body
+    const tabStops = [];
+    let out = '';
+    let i = 0;
+    const n = body.length;
+    while (i < n) {
+      if (body[i] === '$' && body[i+1] === '{') {
+        // Find matching '}'
+        const closeIdx = body.indexOf('}', i + 2);
+        if (closeIdx === -1) { out += body[i]; i++; continue; }
+        const inner = body.substring(i + 2, closeIdx);
+        // Inner is like "1:placeholder" or "1"
+        const colon = inner.indexOf(':');
+        const stopNum = colon >= 0 ? parseInt(inner.substring(0, colon), 10) : parseInt(inner, 10);
+        const placeholder = colon >= 0 ? inner.substring(colon + 1) : '';
+        const pos = out.length;
+        out += placeholder;
+        tabStops.push({ num: stopNum, start: pos, length: placeholder.length });
+        i = closeIdx + 1;
+      } else {
+        out += body[i];
+        i++;
+      }
+    }
+    // Replace selection with `out`
+    editor.value = editor.value.substring(0, start) + out + editor.value.substring(end);
+    // Position cursor at first tab stop (or end)
+    if (tabStops.length > 0) {
+      tabStops.sort((a, b) => a.num - b.num);
+      const first = tabStops[0];
+      editor.selectionStart = start + first.start;
+      editor.selectionEnd = start + first.start + first.length;
+    } else {
+      editor.selectionStart = editor.selectionEnd = start + out.length;
+    }
+    // Store tab stops for subsequent Tab presses (relative to `start`)
+    editor.__snippetStops = tabStops.map(t => ({ num: t.num, start: start + t.start, length: t.length }));
+    editor.__snippetStopIdx = 0;
+    return out;
+  }
+
+  // ---- Bracket auto-closing pairs ----
+  const PAIRS = { '(': ')', '[': ']', '{': '}', '"': '"', "'": "'" };
+
+  // ---- Public API ----
+  global.autocomplete = {
+    KEYWORDS, TYPES, COMMON_METHODS, SNIPPETS, ALL_ITEMS,
+    wordAtCursor, filterItems, expandSnippet, PAIRS, isWordChar
+  };
 })(window);
 
 
@@ -5393,6 +5889,324 @@ if (c == 'a' || c == 'e' || c == 'i' || c == 'o' || c == 'u') {
               },
               name: 'aleatorio', hidden: true
             }
+          ]
+        }
+      ]
+    },
+
+    // ============================================================
+    // MÓDULO MA — Matrices (arrays 2D)
+    // ============================================================
+    {
+      id: 'MA', name: 'Matrices', subtitle: 'Arrays 2D: tablas, recorridos y operaciones',
+      lessons: [
+        {
+          id: 'MA.1', title: 'Crear y leer una matriz',
+          theory: `
+            <h3>Arrays de arrays</h3>
+            <p>Una <strong>matriz</strong> en Java es un array de arrays. La forma más común de declararla es:</p>
+            <pre><code>int[][] m = new int[3][4];   // 3 filas, 4 columnas</code></pre>
+            <p>Esto crea una matriz de 3×4 (12 enteros). Los índices van de <code>[0][0]</code> a <code>[2][3]</code>.</p>
+            <h3>Acceso y asignación</h3>
+            <pre><code>m[0][0] = 1;
+m[2][3] = 12;
+System.out.println(m[0][0]);   // 1
+System.out.println(m[2][3]);   // 12</code></pre>
+            <h3>Dimensiones</h3>
+            <p><code>m.length</code> te da el número de filas. <code>m[i].length</code> te da el número de columnas de la fila <code>i</code> (todas iguales en una matriz rectangular, pero Java permite filas de distinta longitud —matrices irregulares—).</p>
+            <pre><code>System.out.println(m.length);     // 3 (filas)
+System.out.println(m[0].length);  // 4 (columnas de la fila 0)</code></pre>
+            <h3>Inicialización literal</h3>
+            <p>También puedes inicializar con valores explícitos:</p>
+            <pre><code>int[][] m = {{1, 2, 3}, {4, 5, 6}};</code></pre>
+            <p>Esto crea una matriz 2×3 con los valores indicados.</p>
+            <div class="callout">
+              <strong>Disciplina:</strong> piensa siempre en <em>fila, columna</em>: <code>m[fila][columna]</code>. Es la convención matemática. Cambiar el orden produce bugs muy difíciles de encontrar.
+            </div>
+          `,
+          mission: `
+            <span class="mission-label">Misión</span>
+            <p>Crea una matriz <code>int[][] m = new int[3][4]</code> y asigna <code>m[0][0] = 1</code>, <code>m[2][3] = 99</code>. Imprime ambos valores, el número de filas y el número de columnas de la fila 0, cada uno en su línea.</p>
+            <pre><code>1
+99
+3
+4</code></pre>
+          `,
+          starter: `public class Main {
+    public static void main(String[] args) {
+        // int[][] m = new int[3][4];
+        // m[0][0] = 1;
+        // m[2][3] = 99;
+        // System.out.println(m[0][0]);
+        // System.out.println(m[2][3]);
+        // System.out.println(m.length);
+        // System.out.println(m[0].length);
+    }
+}`,
+          hints: [
+            'int[][] m = new int[3][4]; crea una matriz 3 filas × 4 columnas.',
+            'm[0][0] es el elemento de la primera fila, primera columna.',
+            'm.length = 3 (filas), m[0].length = 4 (columnas de la fila 0).'
+          ],
+          tests: [
+            { args: [], expected: lines('1', '99', '3', '4'), name: 'matriz 3x4 básica' }
+          ]
+        },
+        {
+          id: 'MA.2', title: 'Recorrer una matriz',
+          theory: `
+            <h3>Doble for anidado</h3>
+            <p>Para recorrer toda una matriz, usas dos bucles anidados: el externo recorre las filas, el interno las columnas de cada fila.</p>
+            <pre><code>int[][] m = {{1, 2, 3}, {4, 5, 6}};
+for (int i = 0; i &lt; m.length; i++) {
+    for (int j = 0; j &lt; m[i].length; j++) {
+        System.out.print(m[i][j] + " ");
+    }
+    System.out.println();
+}</code></pre>
+            <p>Salida:</p>
+            <pre><code>1 2 3
+4 5 6</code></pre>
+            <h3>El bucle interno por fila</h3>
+            <p>El bucle interno usa <code>m[i].length</code> (columnas de la fila <code>i</code>), no <code>m[0].length</code>. Así funciona incluso con matrices irregulares (filas de distinta longitud), que en Java son legítimas.</p>
+            <h3>Por qué println al final de cada fila</h3>
+            <p>Tras imprimir todos los elementos de una fila con <code>print</code> (sin salto), llamamos a <code>println()</code> para ir a la siguiente línea. Sin eso, todo queda en una sola línea.</p>
+            <div class="callout">
+              <strong>Disciplina:</strong> las variables <code>i</code> (fila) y <code>j</code> (columna) son la convención universal. Úsalas — los demás programadores las reconocerán al instante.
+            </div>
+          `,
+          mission: `
+            <span class="mission-label">Misión</span>
+            <p>Dada <code>int[][] m = {{1, 2, 3}, {4, 5, 6}, {7, 8, 9}}</code>, imprímela recorriendo fila por fila. Cada fila en una línea, con elementos separados por un espacio, y un espacio al final de cada línea.</p>
+            <pre><code>1 2 3
+4 5 6
+7 8 9</code></pre>
+            <p>(Cada línea termina con un espacio antes del salto de línea — es lo que produce <code>print(m[i][j] + " ")</code>.)</p>
+          `,
+          starter: `public class Main {
+    public static void main(String[] args) {
+        int[][] m = {{1, 2, 3}, {4, 5, 6}, {7, 8, 9}};
+        // for (int i = 0; i < m.length; i++) {
+        //     for (int j = 0; j < m[i].length; j++) {
+        //         System.out.print(m[i][j] + " ");
+        //     }
+        //     System.out.println();
+        // }
+    }
+}`,
+          hints: [
+            'Doble for anidado: i recorre m.length (filas), j recorre m[i].length (columnas).',
+            'Dentro del for interno: System.out.print(m[i][j] + " ");',
+            'Después del for interno: System.out.println(); para cambiar de línea.'
+          ],
+          tests: [
+            {
+              args: [],
+              expected: '1 2 3 \n4 5 6 \n7 8 9 \n',
+              name: 'recorrido por filas'
+            }
+          ]
+        },
+        {
+          id: 'MA.3', title: 'Suma de todos los elementos',
+          theory: `
+            <h3>Acumular en una variable</h3>
+            <p>Para sumar todos los elementos de una matriz, el patrón es el mismo que para un array 1D, pero con dos bucles anidados:</p>
+            <pre><code>int[][] m = {{1, 2, 3}, {4, 5, 6}};
+int suma = 0;
+for (int i = 0; i &lt; m.length; i++) {
+    for (int j = 0; j &lt; m[i].length; j++) {
+        suma += m[i][j];
+    }
+}
+System.out.println(suma);   // 21</code></pre>
+            <h3>Variante: suma por filas</h3>
+            <p>Si necesitas la suma de cada fila por separado, reinicias el acumulador al inicio de cada fila:</p>
+            <pre><code>for (int i = 0; i &lt; m.length; i++) {
+    int sumaFila = 0;
+    for (int j = 0; j &lt; m[i].length; j++) sumaFila += m[i][j];
+    System.out.println("Fila " + i + ": " + sumaFila);
+}</code></pre>
+            <h3>Variante: suma por columnas</h3>
+            <p>Si necesitas sumar por columnas, intercambias el orden de los bucles (el externo recorre columnas):</p>
+            <pre><code>for (int j = 0; j &lt; m[0].length; j++) {
+    int sumaCol = 0;
+    for (int i = 0; i &lt; m.length; i++) sumaCol += m[i][j];
+    System.out.println("Col " + j + ": " + sumaCol);
+}</code></pre>
+            <p>Esta forma asume matriz rectangular (todas las filas con igual longitud).</p>
+            <div class="callout">
+              <strong>Disciplina:</strong> cuando trabajes con matrices, decide siempre si tu operación es "por elemento", "por fila" o "por columna". Cada una tiene su patrón distinto.
+            </div>
+          `,
+          mission: `
+            <span class="mission-label">Misión</span>
+            <p>Dada <code>int[][] m = {{1, 2, 3}, {4, 5, 6}, {7, 8, 9}}</code>, calcula e imprime la suma total de todos los elementos en una línea.</p>
+            <pre><code>45</code></pre>
+            <p>(1+2+3+4+5+6+7+8+9 = 45)</p>
+          `,
+          starter: `public class Main {
+    public static void main(String[] args) {
+        int[][] m = {{1, 2, 3}, {4, 5, 6}, {7, 8, 9}};
+        // int suma = 0;
+        // for (int i = 0; i < m.length; i++) {
+        //     for (int j = 0; j < m[i].length; j++) {
+        //         suma += m[i][j];
+        //     }
+        // }
+        // System.out.println(suma);
+    }
+}`,
+          hints: [
+            'Inicializa int suma = 0; antes de los bucles.',
+            'Dentro del for interno: suma += m[i][j];',
+            'Al final: System.out.println(suma);'
+          ],
+          tests: [
+            { args: [], expected: line('45'), name: 'suma total 3x3' }
+          ]
+        },
+        {
+          id: 'MA.4', title: 'Transpuesta',
+          theory: `
+            <h3>Intercambiar filas y columnas</h3>
+            <p>La <strong>transpuesta</strong> de una matriz intercambia filas por columnas: el elemento <code>m[i][j]</code> pasa a estar en la posición <code>[j][i]</code> de la nueva matriz.</p>
+            <pre><code>int[][] m = {{1, 2, 3}, {4, 5, 6}};     // 2x3
+int[][] t = new int[3][2];                  // 3x2 (transpuesta)
+for (int i = 0; i &lt; m.length; i++) {
+    for (int j = 0; j &lt; m[i].length; j++) {
+        t[j][i] = m[i][j];
+    }
+}</code></pre>
+            <p>Resultado: <code>t = {{1, 4}, {2, 5}, {3, 6}}</code>.</p>
+            <h3>Dimensiones al revés</h3>
+            <p>Si la matriz original es <code>m × n</code>, su transpuesta es <code>n × m</code>. Hay que declarar la nueva con las dimensiones intercambiadas.</p>
+            <h3>Imprimir la transpuesta</h3>
+            <p>Tras construirla, recórrela como cualquier otra matriz:</p>
+            <pre><code>for (int i = 0; i &lt; t.length; i++) {
+    for (int j = 0; j &lt; t[i].length; j++) {
+        System.out.print(t[i][j] + " ");
+    }
+    System.out.println();
+}</code></pre>
+            <div class="callout">
+              <strong>Disciplina:</strong> la transpuesta es una operación fundamental en álgebra lineal. Aparece en gráficos (rotación de matrices), en machine learning (operaciones con tensores) y en cualquier cálculo con matrices.
+            </div>
+          `,
+          mission: `
+            <span class="mission-label">Misión</span>
+            <p>Dada <code>int[][] m = {{1, 2, 3}, {4, 5, 6}}</code> (matriz 2×3), construye su transpuesta <code>t</code> (3×2) e imprímela con el mismo formato que en MA.2 (cada fila en una línea, elementos separados por un espacio, espacio al final).</p>
+            <pre><code>1 4
+2 5
+3 6</code></pre>
+            <p>(Cada línea tiene un espacio final antes del salto de línea.)</p>
+          `,
+          starter: `public class Main {
+    public static void main(String[] args) {
+        int[][] m = {{1, 2, 3}, {4, 5, 6}};
+        // int[][] t = new int[3][2];
+        // for (int i = 0; i < m.length; i++) {
+        //     for (int j = 0; j < m[i].length; j++) {
+        //         t[j][i] = m[i][j];
+        //     }
+        // }
+        // for (int i = 0; i < t.length; i++) {
+        //     for (int j = 0; j < t[i].length; j++) {
+        //         System.out.print(t[i][j] + " ");
+        //     }
+        //     System.out.println();
+        // }
+    }
+}`,
+          hints: [
+            'La transpuesta de una 2×3 es una 3×2: new int[3][2].',
+            'Asignación: t[j][i] = m[i][j]; — invierte índices.',
+            'Luego recorre t como cualquier matriz y imprímela.'
+          ],
+          tests: [
+            {
+              args: [],
+              expected: '1 4 \n2 5 \n3 6 \n',
+              name: 'transpuesta 2x3 → 3x2'
+            }
+          ]
+        },
+        {
+          id: 'MA.5', title: 'Buscar un valor en la matriz',
+          theory: `
+            <h3>Búsqueda lineal en 2D</h3>
+            <p>Para saber si un valor está en una matriz, recorres todos los elementos hasta encontrarlo (o llegar al final). Es O(n×m): lineal en el total de elementos.</p>
+            <pre><code>int[][] m = {{1, 2, 3}, {4, 5, 6}};
+int objetivo = 5;
+boolean encontrado = false;
+int fila = -1, col = -1;
+for (int i = 0; i &lt; m.length && !encontrado; i++) {
+    for (int j = 0; j &lt; m[i].length && !encontrado; j++) {
+        if (m[i][j] == objetivo) {
+            encontrado = true;
+            fila = i;
+            col = j;
+        }
+    }
+}
+System.out.println(encontrado ? (fila + "," + col) : "no");</code></pre>
+            <h3>Cortar al encontrar</h3>
+            <p>La condición <code>&amp;&amp; !encontrado</code> en los dos <code>for</code> corta los bucles en cuanto se encuentra el valor. Sin eso, seguirías recorriendo toda la matriz aunque ya tuvieras la respuesta. Para matrices grandes, esto ahorra tiempo.</p>
+            <h3>Variantes: contar ocurrencias</h3>
+            <p>Si quieres contar cuántas veces aparece un valor, quitas el <code>!encontrado</code> y acumulas un contador:</p>
+            <pre><code>int cuenta = 0;
+for (int i = 0; i &lt; m.length; i++) {
+    for (int j = 0; j &lt; m[i].length; j++) {
+        if (m[i][j] == objetivo) cuenta++;
+    }
+}</code></pre>
+            <h3>Matrices ordenadas por filas y columnas</h3>
+            <p>Si cada fila está ordenada y cada columna también (como en una matriz tipo Young tableau), existe una búsqueda O(n+m) empezando desde la esquina superior derecha. Pero eso es avanzado — para este ejercicio, búsqueda lineal basta.</p>
+            <div class="callout">
+              <strong>Disciplina:</strong> la búsqueda lineal es simple pero O(n×m). Si vas a buscar muchas veces en la misma matriz, conviene convertirla en un HashSet primero (O(n×m) una vez, O(1) por búsqueda después).
+            </div>
+          `,
+          mission: `
+            <span class="mission-label">Misión</span>
+            <p>Dada <code>int[][] m = {{1, 2, 3}, {4, 5, 6}, {7, 8, 9}}</code>, lee <code>int objetivo = Integer.parseInt(args[0])</code>. Imprime <code>"fila,col"</code> si el valor está en la matriz, o <code>"no"</code> si no está.</p>
+            <p>Ejemplos:</p>
+            <ul>
+              <li>objetivo=5 → <code>1,1</code></li>
+              <li>objetivo=9 → <code>2,2</code></li>
+              <li>objetivo=10 → <code>no</code></li>
+              <li>objetivo=1 → <code>0,0</code></li>
+            </ul>
+          `,
+          starter: `public class Main {
+    public static void main(String[] args) {
+        int[][] m = {{1, 2, 3}, {4, 5, 6}, {7, 8, 9}};
+        int objetivo = Integer.parseInt(args[0]);
+        // boolean encontrado = false;
+        // int fila = -1, col = -1;
+        // for (int i = 0; i < m.length && !encontrado; i++) {
+        //     for (int j = 0; j < m[i].length && !encontrado; j++) {
+        //         if (m[i][j] == objetivo) {
+        //             encontrado = true;
+        //             fila = i;
+        //             col = j;
+        //         }
+        //     }
+        // }
+        // System.out.println(encontrado ? (fila + "," + col) : "no");
+    }
+}`,
+          hints: [
+            'Recorre con doble for anidado, con la condición && !encontrado para cortar al hallar.',
+            'Cuando m[i][j] == objetivo: encontrado = true; fila = i; col = j;',
+            'Al final: System.out.println(encontrado ? (fila + "," + col) : "no");'
+          ],
+          tests: [
+            { args: ['5'], expected: line('1,1'), name: '5 → 1,1' },
+            { args: ['9'], expected: line('2,2'), name: '9 → 2,2' },
+            { args: ['1'], expected: line('0,0'), name: '1 → 0,0' },
+            { args: ['10'], expected: line('no'), name: '10 → no' },
+            { args: ['3'], expected: line('0,2'), name: '3 → 0,2' },
+            { args: ['7'], expected: line('2,0'), name: '7 → 2,0' }
           ]
         }
       ]
@@ -7348,6 +8162,17 @@ class Player {
   function findModule(id) {
     return CURRICULUM.find(m => m.id === id) || null;
   }
+  function findModuleByLesson(lessonId) {
+    // Find the module whose ID is the longest prefix of the lesson ID.
+    // Supports arbitrary-length module IDs (e.g. "MA", "00", "12").
+    let best = null;
+    for (const m of CURRICULUM) {
+      if (lessonId === m.id || lessonId.startsWith(m.id + '.') || lessonId.startsWith(m.id)) {
+        if (!best || m.id.length > best.id.length) best = m;
+      }
+    }
+    return best;
+  }
   function lessonIdsForModule(modId) {
     const m = findModule(modId);
     return m ? m.lessons.map(l => l.id) : [];
@@ -7371,7 +8196,7 @@ class Player {
 
   global.curriculum = {
     all: CURRICULUM,
-    allLessons, findLesson, findModule,
+    allLessons, findLesson, findModule, findModuleByLesson,
     lessonIdsForModule, firstLessonId, nextLessonId, prevLessonId
   };
 })(window);
@@ -7549,6 +8374,8 @@ class Player {
     editor.value = savedCode != null ? savedCode : ls.starter;
     updateLineNumbers();
     updateHighlight();
+    updateLineHighlight();
+    updateStatusBar();
 
     // nav buttons
     const prevId = curriculum.prevLessonId(id);
@@ -7566,7 +8393,7 @@ class Player {
     // active state in sidebar
     $$('.lesson-item').forEach(it => it.classList.toggle('active', it.dataset.lesson === id));
     // open module of the lesson
-    const mod = curriculum.findModule(ls.id.length >= 2 ? ls.id.substr(0, 2) : '');
+    const mod = curriculum.findModuleByLesson(id);
     if (mod) {
       $$('.module').forEach(m => {
         if (m.dataset.module === mod.id) m.classList.add('open');
@@ -7574,14 +8401,20 @@ class Player {
     }
   }
 
-  // ---- Editor: line numbers + auto-indent + syntax highlight ----
+  // ---- Editor: line numbers + auto-indent + syntax highlight + autocomplete ----
   function updateLineNumbers() {
     const editor = $('#editor');
     const ln = $('#line-numbers');
     const lines = editor.value.split('\n').length;
+    // Find current line number
+    const before = editor.value.substring(0, editor.selectionStart);
+    const curLine = before.split('\n').length;
     let s = '';
-    for (let i = 1; i <= lines; i++) s += i + '\n';
-    ln.textContent = s;
+    for (let i = 1; i <= lines; i++) {
+      if (i === curLine) s += '<span class="ln-current">' + i + '</span>\n';
+      else s += i + '\n';
+    }
+    ln.innerHTML = s;
     ln.scrollTop = editor.scrollTop;
   }
 
@@ -7596,6 +8429,35 @@ class Player {
     overlay.innerHTML = html;
   }
 
+  function updateLineHighlight() {
+    const editor = $('#editor');
+    const overlay = $('#line-highlight-overlay');
+    if (!overlay) return;
+    const before = editor.value.substring(0, editor.selectionStart);
+    const curLine = before.split('\n').length;
+    // Each line is 19.5px (font-size 13px * line-height 1.5 = 19.5px)
+    const top = 10 + (curLine - 1) * 19.5 - editor.scrollTop;
+    overlay.style.top = top + 'px';
+  }
+
+  function updateStatusBar() {
+    const editor = $('#editor');
+    const sbRowcol = $('#sb-rowcol');
+    const sbSel = $('#sb-sel');
+    if (!sbRowcol) return;
+    const before = editor.value.substring(0, editor.selectionStart);
+    const lineParts = before.split('\n');
+    const ln = lineParts.length;
+    const col = lineParts[lineParts.length - 1].length + 1;
+    sbRowcol.textContent = 'Ln ' + ln + ', Col ' + col;
+    const selLen = Math.abs(editor.selectionEnd - editor.selectionStart);
+    if (selLen > 0) {
+      sbSel.textContent = selLen + ' sel';
+    } else {
+      sbSel.textContent = '';
+    }
+  }
+
   function syncScroll() {
     const editor = $('#editor');
     const ln = $('#line-numbers');
@@ -7605,34 +8467,327 @@ class Player {
       overlay.scrollTop = editor.scrollTop;
       overlay.scrollLeft = editor.scrollLeft;
     }
+    updateLineHighlight();
+  }
+
+  // ---- Autocomplete popup ----
+  let acState = {
+    items: [],
+    selectedIdx: 0,
+    visible: false,
+    prefix: '',
+    prefixStart: 0,
+    prefixEnd: 0
+  };
+
+  function showAutocomplete(items, prefixStart, prefixEnd, prefix) {
+    const popup = $('#autocomplete-popup');
+    if (items.length === 0) {
+      hideAutocomplete();
+      return;
+    }
+    acState.items = items;
+    acState.selectedIdx = 0;
+    acState.visible = true;
+    acState.prefix = prefix;
+    acState.prefixStart = prefixStart;
+    acState.prefixEnd = prefixEnd;
+    // Render items
+    let html = '';
+    for (let i = 0; i < items.length; i++) {
+      const it = items[i];
+      const kindLetter = it.kind === 'kw' ? 'K'
+        : it.kind === 'type' ? 'T'
+        : it.kind === 'fn' ? 'ƒ'
+        : it.kind === 'snippet' ? 'S'
+        : it.kind === 'field' ? 'F'
+        : it.kind === 'var' ? 'V'
+        : '·';
+      const cls = it.kind === 'snippet' ? 'k-snippet'
+        : it.kind === 'kw' ? 'k-kw'
+        : it.kind === 'type' ? 'k-type'
+        : it.kind === 'fn' ? 'k-fn'
+        : it.kind === 'field' ? 'k-field'
+        : it.kind === 'var' ? 'k-var'
+        : '';
+      const detail = it.detail ? '<span class="ac-detail">' + escapeHtml(it.detail) + '</span>' : '';
+      html += '<div class="autocomplete-item' + (i === 0 ? ' selected' : '') + '" data-idx="' + i + '" role="option">'
+        + '<span class="ac-kind ' + cls + '">' + kindLetter + '</span>'
+        + '<span class="ac-label">' + escapeHtml(it.label) + '</span>'
+        + detail
+        + '</div>';
+    }
+    popup.innerHTML = html;
+    popup.classList.add('visible');
+    popup.setAttribute('aria-hidden', 'false');
+    // Position popup below the cursor
+    positionPopup();
+    // Wire clicks
+    popup.querySelectorAll('.autocomplete-item').forEach(el => {
+      el.addEventListener('mousedown', (e) => {
+        e.preventDefault(); // don't lose editor focus
+        const idx = parseInt(el.dataset.idx, 10);
+        acceptCompletion(idx);
+      });
+    });
+  }
+
+  function positionPopup() {
+    const editor = $('#editor');
+    const popup = $('#autocomplete-popup');
+    if (!popup) return;
+    // Position below cursor based on caret coordinates
+    const caretPos = editor.selectionStart;
+    const before = editor.value.substring(0, caretPos);
+    const lines = before.split('\n');
+    const lineIdx = lines.length - 1;
+    const colInLine = lines[lineIdx].length;
+    // Approximate: 7.2px per character, 19.5px per line, plus 10px padding
+    // Account for scroll
+    const x = 56 + 12 + colInLine * 7.2 - editor.scrollLeft;
+    const y = 10 + (lineIdx + 1) * 19.5 - editor.scrollTop;
+    popup.style.left = x + 'px';
+    popup.style.top = y + 'px';
+  }
+
+  function hideAutocomplete() {
+    const popup = $('#autocomplete-popup');
+    if (!popup) return;
+    popup.classList.remove('visible');
+    popup.setAttribute('aria-hidden', 'true');
+    popup.innerHTML = '';
+    acState.visible = false;
+    acState.items = [];
+  }
+
+  function acMoveSelection(delta) {
+    if (!acState.visible || acState.items.length === 0) return;
+    acState.selectedIdx = (acState.selectedIdx + delta) % acState.items.length;
+    if (acState.selectedIdx < 0) acState.selectedIdx += acState.items.length;
+    const items = $('#autocomplete-popup').querySelectorAll('.autocomplete-item');
+    items.forEach((el, i) => el.classList.toggle('selected', i === acState.selectedIdx));
+    // Scroll into view
+    if (items[acState.selectedIdx]) {
+      items[acState.selectedIdx].scrollIntoView({ block: 'nearest' });
+    }
+  }
+
+  function acceptCompletion(idx) {
+    const editor = $('#editor');
+    const item = acState.items[idx];
+    if (!item) return;
+    // If snippet, expand it
+    if (item.kind === 'snippet' && item.snippet) {
+      // Replace the prefix (snippet trigger) with the snippet body
+      editor.selectionStart = acState.prefixStart;
+      editor.selectionEnd = acState.prefixEnd;
+      autocomplete.expandSnippet(item.snippet.body, editor);
+    } else {
+      // Replace the prefix with the label
+      const before = editor.value.substring(0, acState.prefixStart);
+      const after = editor.value.substring(acState.prefixEnd);
+      editor.value = before + item.label + after;
+      const newCaret = acState.prefixStart + item.label.length;
+      editor.selectionStart = editor.selectionEnd = newCaret;
+      // If it's a method or class ref that takes args, position cursor inside parens (if label ends with '()')
+      // (Most method labels don't end with () since we use just the name — leave caret at end.)
+    }
+    hideAutocomplete();
+    // Refresh UI
+    updateLineNumbers();
+    updateHighlight();
+    updateLineHighlight();
+    updateStatusBar();
+    if (currentLesson) state.saveCode(currentLesson.id, editor.value);
+  }
+
+  function maybeShowAutocomplete() {
+    const editor = $('#editor');
+    const caret = editor.selectionStart;
+    const w = autocomplete.wordAtCursor(editor.value, caret);
+    // Don't trigger on empty word at start of word, unless right after a `.`
+    const beforeWord = editor.value.substring(0, w.start);
+    const charBefore = beforeWord.length > 0 ? beforeWord[beforeWord.length - 1] : '';
+    if (w.word.length === 0 && charBefore !== '.') {
+      hideAutocomplete();
+      return;
+    }
+    // Don't trigger inside strings or comments (very rough heuristic)
+    const lineStart = editor.value.lastIndexOf('\n', caret - 1) + 1;
+    const lineText = editor.value.substring(lineStart, caret);
+    // If the line starts with `//` or inside a string (heuristic: odd number of " up to caret)
+    const quotesBefore = (lineText.match(/"/g) || []).length;
+    if (lineText.trim().startsWith('//') || quotesBefore % 2 === 1) {
+      hideAutocomplete();
+      return;
+    }
+    if (w.word.length < 1 && charBefore !== '.') {
+      hideAutocomplete();
+      return;
+    }
+    const items = autocomplete.filterItems(w.word);
+    showAutocomplete(items, w.start, w.end, w.word);
   }
 
   function setupEditor() {
     const editor = $('#editor');
+    const editorWrap = editor.closest('.editor-wrap');
+
     editor.addEventListener('input', () => {
       updateLineNumbers();
       updateHighlight();
+      updateLineHighlight();
+      updateStatusBar();
       if (currentLesson) state.saveCode(currentLesson.id, editor.value);
+      // Trigger autocomplete
+      maybeShowAutocomplete();
     });
-    editor.addEventListener('scroll', syncScroll);
+    editor.addEventListener('focus', () => {
+      if (editorWrap) editorWrap.classList.add('editor-focused');
+      updateLineHighlight();
+    });
+    editor.addEventListener('blur', () => {
+      if (editorWrap) editorWrap.classList.remove('editor-focused');
+      // Delay hiding so click on popup works
+      setTimeout(() => hideAutocomplete(), 200);
+    });
+    editor.addEventListener('scroll', () => {
+      syncScroll();
+      updateLineHighlight();
+    });
+    editor.addEventListener('click', () => {
+      updateLineHighlight();
+      updateStatusBar();
+      maybeShowAutocomplete();
+    });
+    editor.addEventListener('keyup', (e) => {
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowRight' || e.key === 'Home' || e.key === 'End' || e.key === 'PageUp' || e.key === 'PageDown') {
+        updateLineHighlight();
+        updateStatusBar();
+        if (acState.visible) positionPopup();
+      }
+    });
+
     editor.addEventListener('keydown', (e) => {
+      // Autocomplete navigation
+      if (acState.visible && acState.items.length > 0) {
+        if (e.key === 'ArrowDown') { e.preventDefault(); acMoveSelection(1); return; }
+        if (e.key === 'ArrowUp') { e.preventDefault(); acMoveSelection(-1); return; }
+        if (e.key === 'Enter') { e.preventDefault(); acceptCompletion(acState.selectedIdx); return; }
+        if (e.key === 'Tab') { e.preventDefault(); acceptCompletion(acState.selectedIdx); return; }
+        if (e.key === 'Escape') { e.preventDefault(); hideAutocomplete(); return; }
+      }
+
+      // Snippet tab-stops (when a snippet was inserted, Tab moves between stops)
+      if (e.key === 'Tab' && editor.__snippetStops && editor.__snippetStops.length > 0) {
+        e.preventDefault();
+        editor.__snippetStopIdx = (editor.__snippetStopIdx + 1) % editor.__snippetStops.length;
+        const stop = editor.__snippetStops[editor.__snippetStopIdx];
+        editor.selectionStart = stop.start;
+        editor.selectionEnd = stop.start + stop.length;
+        // If at the last stop, clear stops (so subsequent Tab inserts 4 spaces)
+        if (editor.__snippetStopIdx === editor.__snippetStops.length - 1) {
+          // keep stops so user can cycle, but...
+        }
+        return;
+      }
+
       // Tab inserts 4 spaces
-      if (e.key === 'Tab') {
+      if (e.key === 'Tab' && !e.shiftKey) {
         e.preventDefault();
         const start = editor.selectionStart;
         const end = editor.selectionEnd;
         editor.value = editor.value.substring(0, start) + '    ' + editor.value.substring(end);
         editor.selectionStart = editor.selectionEnd = start + 4;
+        // Clear any snippet stops
+        editor.__snippetStops = null;
         updateLineNumbers();
         updateHighlight();
+        updateLineHighlight();
+        updateStatusBar();
         if (currentLesson) state.saveCode(currentLesson.id, editor.value);
+        maybeShowAutocomplete();
+        return;
       }
+
       // Ctrl+Enter to run
       if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
         e.preventDefault();
         runCode();
+        return;
       }
-      // Auto-indent on Enter (basic)
+
+      // Auto-closing brackets
+      const closing = autocomplete.PAIRS[e.key];
+      if (closing && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        const start = editor.selectionStart;
+        const end = editor.selectionEnd;
+        // If selection is empty:
+        if (start === end) {
+          // For strings (' and "), only auto-close if it's "opening" (i.e., not a closing pair matching the previous char)
+          // For brackets, always auto-close
+          if (e.key === '"' || e.key === "'") {
+            // If the char before is a word char, treat as closing — don't auto-pair
+            const before = editor.value.substring(0, start);
+            const charBefore = before.length > 0 ? before[before.length - 1] : '';
+            if (autocomplete.isWordChar(charBefore)) {
+              // Just insert the quote normally
+              return;
+            }
+            // If next char is the same quote, jump over it
+            const charAfter = editor.value.substring(start, start + 1);
+            if (charAfter === e.key) {
+              e.preventDefault();
+              editor.selectionStart = editor.selectionEnd = start + 1;
+              return;
+            }
+          }
+          e.preventDefault();
+          editor.value = editor.value.substring(0, start) + e.key + closing + editor.value.substring(end);
+          editor.selectionStart = editor.selectionEnd = start + 1;
+          updateLineNumbers();
+          updateHighlight();
+          updateLineHighlight();
+          updateStatusBar();
+          if (currentLesson) state.saveCode(currentLesson.id, editor.value);
+          return;
+        } else {
+          // Wrap selection in brackets
+          e.preventDefault();
+          editor.value = editor.value.substring(0, start) + e.key + editor.value.substring(start, end) + closing + editor.value.substring(end);
+          editor.selectionStart = start + 1;
+          editor.selectionEnd = end + 1;
+          updateLineNumbers();
+          updateHighlight();
+          updateLineHighlight();
+          updateStatusBar();
+          if (currentLesson) state.saveCode(currentLesson.id, editor.value);
+          return;
+        }
+      }
+
+      // Smart Backspace: if cursor is between an auto-paired bracket, delete both
+      if (e.key === 'Backspace' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        const start = editor.selectionStart;
+        const end = editor.selectionEnd;
+        if (start === end && start > 0) {
+          const before = editor.value.substring(start - 1, start);
+          const after = editor.value.substring(start, start + 1);
+          if (autocomplete.PAIRS[before] === after) {
+            e.preventDefault();
+            editor.value = editor.value.substring(0, start - 1) + editor.value.substring(start + 1);
+            editor.selectionStart = editor.selectionEnd = start - 1;
+            updateLineNumbers();
+            updateHighlight();
+            updateLineHighlight();
+            updateStatusBar();
+            if (currentLesson) state.saveCode(currentLesson.id, editor.value);
+            return;
+          }
+        }
+      }
+
+      // Smart Enter: after `{`, indent and close on next line
       if (e.key === 'Enter' && !e.ctrlKey && !e.metaKey) {
         const start = editor.selectionStart;
         const lineStart = editor.value.lastIndexOf('\n', start - 1) + 1;
@@ -7640,6 +8795,9 @@ class Player {
         const indent = lineText.match(/^[ \t]*/)[0];
         let extra = '';
         if (lineText.trimEnd().endsWith('{')) extra = '    ';
+        // Check if next non-whitespace char after caret is `}` — if so, auto-close
+        const after = editor.value.substring(start);
+        const closingMatch = after.match(/^\s*\}/);
         if (indent || extra) {
           e.preventDefault();
           const insert = '\n' + indent + extra;
@@ -7647,10 +8805,22 @@ class Player {
           editor.selectionStart = editor.selectionEnd = start + insert.length;
           updateLineNumbers();
           updateHighlight();
+          updateLineHighlight();
+          updateStatusBar();
           if (currentLesson) state.saveCode(currentLesson.id, editor.value);
+          maybeShowAutocomplete();
+          return;
         }
       }
+
+      // Manual trigger: Ctrl+Space shows autocomplete
+      if (e.key === ' ' && e.ctrlKey) {
+        e.preventDefault();
+        maybeShowAutocomplete();
+        return;
+      }
     });
+
     // Format button (basic re-indent)
     $('#btn-format').addEventListener('click', () => {
       const code = editor.value;
@@ -7658,6 +8828,8 @@ class Player {
       editor.value = formatted;
       updateLineNumbers();
       updateHighlight();
+      updateLineHighlight();
+      updateStatusBar();
       if (currentLesson) state.saveCode(currentLesson.id, editor.value);
       toast('Código formateado', 'info', 1500);
     });
@@ -7800,7 +8972,7 @@ class Player {
         else if (gained.bonus > 0) msg += ' (sin pistas)';
         toast(msg, 'success', 3500);
         // module complete?
-        const mod = curriculum.findModule(currentLesson.id.substr(0, 2));
+        const mod = curriculum.findModuleByLesson(currentLesson.id);
         if (mod && mod.lessons.length > 0) {
           const ids = mod.lessons.map(l => l.id);
           const all = ids.every(id => state.isSolved(id));
