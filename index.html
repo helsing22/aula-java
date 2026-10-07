@@ -41,6 +41,7 @@
 
   /* Layout */
   --sidebar-w: 280px;
+  --sidebar-w-narrow: 56px;
   --header-h: 56px;
   --radius: 8px;
   --radius-sm: 4px;
@@ -65,6 +66,28 @@ html, body {
 
 #app.sidebar-collapsed {
   grid-template-columns: 0 1fr;
+}
+
+/* Mobile: stack sidebar above main */
+@media (max-width: 768px) {
+  #app {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr;
+  }
+  #app.sidebar-collapsed {
+    grid-template-columns: 1fr;
+  }
+  #sidebar {
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+    max-height: 40vh;
+    transition: max-height 200ms ease;
+  }
+  #app.sidebar-collapsed #sidebar {
+    max-height: 0;
+    overflow: hidden;
+    border-bottom: none;
+  }
 }
 
 /* ===== Sidebar ===== */
@@ -383,9 +406,25 @@ kbd {
   background: var(--border-soft);
   overflow: hidden;
 }
-@media (max-width: 980px) {
-  .content-grid { grid-template-columns: 1fr; grid-template-rows: 1fr 1fr; }
-  #app { grid-template-columns: var(--sidebar-w) 1fr; }
+/* Tabbed mode: lesson and editor stacked vertically, switchable by tabs */
+.content-grid.tabbed {
+  grid-template-columns: 1fr;
+  grid-template-rows: 1fr;
+}
+.content-grid.tabbed #lesson { display: none; }
+.content-grid.tabbed.editor-mode #lesson { display: flex; }
+.content-grid.tabbed.editor-mode .editor-panel { display: flex; }
+.content-grid.tabbed.lesson-mode .editor-panel { display: none; }
+.content-grid.tabbed.lesson-mode #lesson { display: flex; }
+
+@media (max-width: 768px) {
+  .content-grid { grid-template-columns: 1fr; grid-template-rows: 1fr; }
+  /* On mobile: lesson and editor use tabs */
+  .content-grid #lesson { display: none; }
+  .content-grid.lesson-mode #lesson { display: flex; }
+  .content-grid.lesson-mode .editor-panel { display: none; }
+  .content-grid.editor-mode #lesson { display: none; }
+  .content-grid.editor-mode .editor-panel { display: flex; }
 }
 
 .panel {
@@ -397,7 +436,6 @@ kbd {
 
 /* ===== Lesson panel ===== */
 .lesson-panel { padding: 0; }
-
 .lesson-header {
   padding: 16px 20px 8px;
   border-bottom: 1px solid var(--border-soft);
@@ -405,6 +443,57 @@ kbd {
   align-items: baseline;
   gap: 12px;
 }
+.lesson-header .popout-btn {
+  margin-left: auto;
+  align-self: center;
+}
+.editor-toolbar .popout-btn {
+  margin-left: auto;
+}
+.popout-btn {
+  background: transparent;
+  border: 1px solid var(--border-soft);
+  color: var(--text-dim);
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 12px;
+  font-family: var(--font-mono);
+}
+.popout-btn:hover {
+  background: var(--bg-elev-2);
+  color: var(--text);
+  border-color: var(--accent);
+}
+
+/* Mobile mode tabs */
+.mobile-tabs {
+  display: none;
+  background: var(--bg-elev);
+  border-bottom: 1px solid var(--border-soft);
+  padding: 4px 8px;
+  gap: 4px;
+}
+.mobile-tabs .mtab {
+  flex: 1;
+  background: transparent;
+  border: 1px solid var(--border-soft);
+  color: var(--text-dim);
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+}
+.mobile-tabs .mtab.active {
+  background: var(--accent-glow);
+  border-color: var(--accent);
+  color: var(--text-bright);
+}
+@media (max-width: 768px) {
+  .mobile-tabs { display: flex; }
+}
+
 .lesson-num {
   font-family: var(--font-mono);
   color: var(--accent);
@@ -1034,12 +1123,18 @@ kbd {
       </div>
     </header>
 
-    <div class="content-grid">
+    <div class="content-grid" id="content-grid">
+      <!-- Mobile tabs -->
+      <div class="mobile-tabs" id="mobile-tabs">
+        <button class="mtab active" data-mtab="lesson">📖 Lección</button>
+        <button class="mtab" data-mtab="editor">💻 Editor</button>
+      </div>
       <!-- Lesson panel -->
       <section id="lesson" class="panel lesson-panel">
         <div class="lesson-header">
           <span class="lesson-num" id="lesson-num">00.1</span>
           <h2 id="lesson-title">Hola mundo</h2>
+          <button id="btn-popout-lesson" class="popout-btn" title="Abrir lección en ventana nueva" aria-label="Abrir en ventana nueva">⤢</button>
         </div>
         <div class="lesson-body" id="lesson-body"></div>
         <div class="hints" id="hints"></div>
@@ -1057,6 +1152,7 @@ kbd {
             <button id="btn-format" class="icon-btn" title="Formatear" aria-label="Formatear">⌗</button>
             <button id="btn-clear-console" class="icon-btn" title="Limpiar consola" aria-label="Limpiar consola">⎚</button>
           </div>
+          <button id="btn-popout-editor" class="popout-btn" title="Abrir editor en ventana nueva" aria-label="Abrir editor en ventana nueva">⤢</button>
         </div>
         <div class="editor-wrap">
           <div id="line-numbers" class="line-numbers" aria-hidden="true"></div>
@@ -2391,7 +2487,7 @@ kbd {
         if (at('KEYWORD', 'instanceof')) {
           next();
           const typeTok = eat('IDENT');
-          left = N('InstanceOf', { expr: left, type: typeTok.value });
+          left = N('InstanceOf', { expr: left, typeName: typeTok.value });
         } else {
           const op = next().value;
           left = N('BinaryOp', { op, left, right: parseShift() });
@@ -2803,8 +2899,12 @@ kbd {
         const r = op === '&' ? (L.value && R.value) : op === '|' ? (L.value || R.value) : (L.value !== R.value);
         return valueNode('boolean', r);
       }
-      if (isInt(L) && isInt(R)) {
-        const r = op === '&' ? (L.value & R.value) : op === '|' ? (L.value | R.value) : (L.value ^ R.value);
+      // Coerce char to int (Java promotes char to int for bitwise ops)
+      let li = L, ri = R;
+      if (isChar(L)) li = valueNode('int', L.value.charCodeAt(0));
+      if (isChar(R)) ri = valueNode('int', R.value.charCodeAt(0));
+      if (isInt(li) && isInt(ri)) {
+        const r = op === '&' ? (li.value & ri.value) : op === '|' ? (li.value | ri.value) : (li.value ^ ri.value);
         return valueNode('int', r | 0);
       }
       throw new JavaError('runtime', `${op} requiere int o boolean`, line, 0);
@@ -3294,7 +3394,7 @@ kbd {
           if (!v || v.vtype !== 'object') return valueNode('boolean', false);
           let cls = v.classObj;
           while (cls) {
-            if (cls.name === node.type) return valueNode('boolean', true);
+            if (cls.name === node.typeName) return valueNode('boolean', true);
             cls = cls.parent ? this.classes.get(cls.parent) : null;
           }
           return valueNode('boolean', false);
@@ -3422,8 +3522,21 @@ kbd {
       }
       if (t.base === 'char' && t.dims === 0) {
         if (isInt(v)) return valueNode('char', String.fromCharCode(v.value & 0xffff));
+        if (isChar(v)) return v;
       }
       if (t.base === 'boolean' && t.dims === 0 && isBool(v)) return v;
+      // Object cast (downcast): if v is a user object, and t.base is the same class
+      // or a parent, the cast returns the object as-is (our model doesn't enforce types).
+      if (v && v.vtype === 'object') {
+        // Check if t.base is in the class hierarchy of v.classObj
+        let cls = v.classObj;
+        while (cls) {
+          if (cls.name === t.base) return v;
+          cls = cls.parent ? this.classes.get(cls.parent) : null;
+        }
+        // Even if t.base is not in hierarchy, just return v (no ClassCastException in our model)
+        return v;
+      }
       return v;
     }
 
@@ -4069,7 +4182,26 @@ kbd {
         if (isNaN(n)) throw new JavaError('runtime', `'${a[0].value}' no es un double válido`, 0, 0);
         return valueNode('double', n);
       }
+      if (name === 'toString' && a.length === 1 && isDouble(a[0])) {
+        return valueNode('String', javaToString(a[0]));
+      }
+      if (name === 'isNaN' && a.length === 1 && isDouble(a[0])) {
+        return valueNode('boolean', Number.isNaN(a[0].value));
+      }
+      if (name === 'isInfinite' && a.length === 1 && isDouble(a[0])) {
+        return valueNode('boolean', !Number.isFinite(a[0].value));
+      }
       throw new JavaError('runtime', `Double.${name} no soportado`, 0, 0);
+    },
+    Boolean: (interp, name, args, env) => {
+      const a = args.map(x => interp.evalExpr(x, env));
+      if (name === 'parseBoolean' && a.length === 1 && isStr(a[0])) {
+        return valueNode('boolean', a[0].value.toLowerCase() === 'true');
+      }
+      if (name === 'toString' && a.length === 1 && isBool(a[0])) {
+        return valueNode('String', a[0].value ? 'true' : 'false');
+      }
+      throw new JavaError('runtime', `Boolean.${name} no soportado`, 0, 0);
     },
     Math: (interp, name, args, env) => {
       const a = args.map(x => interp.evalExpr(x, env));
@@ -6213,6 +6345,1375 @@ for (int i = 0; i &lt; m.length; i++) {
     },
 
     // ============================================================
+    // MÓDULO CA — Cadenas (Strings avanzados)
+    // ============================================================
+    {
+      id: 'CA', name: 'Cadenas', subtitle: 'Manipulación avanzada de Strings',
+      lessons: [
+        {
+          id: 'CA.1', title: 'Contar palabras',
+          theory: `
+            <h3>Separar y contar</h3>
+            <p>Un problema clásico: dado un texto, ¿cuántas palabras contiene? La idea es dividir el texto por espacios y contar los trozos no vacíos.</p>
+            <pre><code>String s = "hola mundo cruel";
+String[] partes = s.split(" ");
+System.out.println(partes.length);   // 3</code></pre>
+            <h3>Cuidado con múltiples espacios</h3>
+            <p>Si hay espacios dobles, <code>split(" ")</code> deja trozos vacíos. Para limpiar, filtra los vacíos o usa <code>split("\\\\s+")</code> (en Java real, esto es regex — un grupo de espacios seguidos).</p>
+            <p>En este intérprete, <code>split</code> usa el separador literal (sin regex), así que para varias palabras separadas por un espacio, <code>split(" ")</code> funciona.</p>
+            <div class="callout">
+              <strong>Truco:</strong> si el texto tiene espacios al inicio o final, recórtalos primero con <code>s.trim()</code>. Así evitas partes vacías al principio o al final.
+            </div>
+          `,
+          mission: `
+            <span class="mission-label">Misión</span>
+            <p>Lee <code>String s = args[0]</code>, recórtalo con <code>trim()</code>, divídelo por espacios con <code>split(" ")</code> e imprime el número de palabras (length del array).</p>
+            <p>Ejemplos:</p>
+            <ul>
+              <li>"hola mundo cruel" → 3</li>
+              <li>"   java  es   genial  " → 4 (tras trim y split)</li>
+              <li>"hola" → 1</li>
+              <li>"" → 0 (tras trim, cadena vacía)</li>
+            </ul>
+          `,
+          starter: `public class Main {
+    public static void main(String[] args) {
+        String s = args[0];
+        // s = s.trim();
+        // String[] partes = s.split(" ");
+        // int cuenta = 0;
+        // for (int i = 0; i < partes.length; i++) if (!partes[i].isEmpty()) cuenta++;
+        // System.out.println(cuenta);
+    }
+}`,
+          hints: [
+            'trim() elimina espacios al inicio y final.',
+            'split(" ") devuelve un array de subcadenas.',
+            'Si la cadena está vacía tras trim, partes[0] será "" — cuenta solo los no vacíos.'
+          ],
+          tests: [
+            { args: ['hola mundo cruel'], expected: line('3'), name: 'tres palabras' },
+            { args: ['hola'], expected: line('1'), name: 'una palabra' },
+            { args: ['   java  es   genial  '], expected: line('3'), name: 'con espacios dobles' },
+            { args: [''], expected: line('0'), name: 'vacío' },
+            { args: ['   '], expected: line('0'), name: 'solo espacios' },
+            { args: ['uno dos tres cuatro cinco'], expected: line('5'), name: 'cinco palabras' }
+          ]
+        },
+        {
+          id: 'CA.2', title: 'Invertir palabras (no caracteres)',
+          theory: `
+            <h3>Orden inverso de palabras</h3>
+            <p>Diferente a invertir los caracteres (que vimos en palíndromos): aquí invertimos el <em>orden</em> de las palabras manteniendo cada palabra intacta.</p>
+            <pre><code>String s = "Hola mundo cruel";
+String[] partes = s.split(" ");
+String inverso = "";
+for (int i = partes.length - 1; i >= 0; i--) {
+    inverso += partes[i];
+    if (i > 0) inverso += " ";
+}
+System.out.println(inverso);   // "cruel mundo Hola"</code></pre>
+            <h3>StringBuilder para concatenar</h3>
+            <p>Si el texto es largo, concatenar con <code>+</code> es ineficiente (crea un nuevo String en cada paso). En Java real se usa <code>StringBuilder</code>:</p>
+            <pre><code>StringBuilder sb = new StringBuilder();
+for (int i = partes.length - 1; i >= 0; i--) {
+    sb.append(partes[i]);
+    if (i > 0) sb.append(" ");
+}
+String inverso = sb.toString();</code></pre>
+            <p>Aquí en el intérprete, <code>+</code> funciona igual de bien para textos cortos.</p>
+            <div class="callout">
+              <strong>Disciplina:</strong> al recorrer un array al revés, empiezas en <code>length - 1</code> y terminas en <code>0</code> (inclusivo). Comprueba bien el índice final.
+            </div>
+          `,
+          mission: `
+            <span class="mission-label">Misión</span>
+            <p>Lee <code>String s = args[0]</code>, divídelo en palabras por espacios, e imprime las palabras en orden inverso, separadas por un espacio.</p>
+            <p>Ejemplo: "Hola mundo cruel" → "cruel mundo Hola"</p>
+          `,
+          starter: `public class Main {
+    public static void main(String[] args) {
+        String s = args[0];
+        // String[] partes = s.split(" ");
+        // StringBuilder sb = new StringBuilder();
+        // for (int i = partes.length - 1; i >= 0; i--) {
+        //     sb.append(partes[i]);
+        //     if (i > 0) sb.append(" ");
+        // }
+        // System.out.println(sb.toString());
+    }
+}`,
+          hints: [
+            'Empieza el for en i = partes.length - 1.',
+            'En cada paso append(partes[i]) y luego append(" ") si i > 0.',
+            'Al final, imprime sb.toString().'
+          ],
+          tests: [
+            { args: ['Hola mundo cruel'], expected: line('cruel mundo Hola'), name: 'tres palabras invertidas' },
+            { args: ['Java'], expected: line('Java'), name: 'una palabra' },
+            { args: ['a b c d e'], expected: line('e d c b a'), name: 'cinco letras' },
+            { args: ['uno dos'], expected: line('dos uno'), name: 'dos palabras' },
+            { args: ['primero segundo tercero cuarto'], expected: line('cuarto tercero segundo primero'), name: 'cuatro palabras' }
+          ]
+        },
+        {
+          id: 'CA.3', title: 'Contar letras y dígitos',
+          theory: `
+            <h3>Clasificar caracteres</h3>
+            <p>Clasificar cada carácter de un texto como letra, dígito, espacio u otro es una operación muy común (validación de formularios, análisis de entrada, criptografía simple).</p>
+            <p>La clase <code>Character</code> ofrece métodos estáticos:</p>
+            <ul>
+              <li><code>Character.isLetter(c)</code> — ¿es letra?</li>
+              <li><code>Character.isDigit(c)</code> — ¿es dígito (0-9)?</li>
+              <li><code>Character.isLetterOrDigit(c)</code> — ¿letra o dígito?</li>
+              <li><code>Character.isWhitespace(c)</code> — ¿espacio en blanco?</li>
+              <li><code>Character.isUpperCase(c)</code> / <code>isLowerCase(c)</code> — mayúscula / minúscula.</li>
+            </ul>
+            <pre><code>String s = "Java 17 sale en 2021";
+int letras = 0, digitos = 0;
+for (int i = 0; i &lt; s.length(); i++) {
+    char c = s.charAt(i);
+    if (Character.isLetter(c)) letras++;
+    else if (Character.isDigit(c)) digitos++;
+}
+System.out.println("Letras: " + letras + ", Dígitos: " + digitos);
+// Letras: 9, Dígitos: 4</code></pre>
+            <h3>Por qué importar Character</h3>
+            <p><code>Character</code> es una clase del paquete <code>java.lang</code>, que Java importa automáticamente. No necesitas <code>import java.lang.Character;</code> — está siempre disponible.</p>
+            <div class="callout">
+              <strong>Disciplina:</strong> cuando analices texto, decide primero tu taxonomía (letra / dígito / espacio / símbolo). Tener clara la clasificación evita que cuentes dos veces o dejes cosas fuera.
+            </div>
+          `,
+          mission: `
+            <span class="mission-label">Misión</span>
+            <p>Lee <code>String s = args[0]</code>. Cuenta cuántas letras y cuántos dígitos contiene (usa <code>Character.isLetter</code> e <code>Character.isDigit</code>). Imprime "Letras: N, Digitos: M" en una línea.</p>
+            <p>Ejemplo: "Java17sale2021" → "Letras: 8, Digitos: 4" (J,a,v,a,s,a,l,e = 8 letras; 1,7,2,0,2,1 = 6 dígitos — espera, son 6 no 4).</p>
+            <p>Recomprobación: "Java17sale2021" → letras: J,a,v,a,s,a,l,e = 8. Dígitos: 1,7,2,0,2,1 = 6. Salida: <code>Letras: 8, Digitos: 6</code></p>
+          `,
+          starter: `public class Main {
+    public static void main(String[] args) {
+        String s = args[0];
+        // int letras = 0, digitos = 0;
+        // for (int i = 0; i < s.length(); i++) {
+        //     char c = s.charAt(i);
+        //     if (Character.isLetter(c)) letras++;
+        //     else if (Character.isDigit(c)) digitos++;
+        // }
+        // System.out.println("Letras: " + letras + ", Digitos: " + digitos);
+    }
+}`,
+          hints: [
+            'Recorre con for (int i = 0; i < s.length(); i++) { char c = s.charAt(i); ... }',
+            'Character.isLetter(c) e Character.isDigit(c) clasifican.',
+            'El formato exacto: "Letras: " + letras + ", Digitos: " + digitos'
+          ],
+          tests: [
+            { args: ['Java17sale2021'], expected: line('Letras: 8, Digitos: 6'), name: 'mezcla' },
+            { args: ['Hola'], expected: line('Letras: 4, Digitos: 0'), name: 'solo letras' },
+            { args: ['12345'], expected: line('Letras: 0, Digitos: 5'), name: 'solo dígitos' },
+            { args: ['Hello World 42'], expected: line('Letras: 10, Digitos: 2'), name: 'con espacios' },
+            { args: ['C0d1g0'], expected: line('Letras: 3, Digitos: 3'), name: 'intercalado' }
+          ]
+        },
+        {
+          id: 'CA.4', title: 'Capitalizar cada palabra',
+          theory: `
+            <h3>Mayúscula inicial</h3>
+            <p>Para poner en mayúscula la primera letra de cada palabra (estilo "Title Case"), recorres carácter por carácter y conviertes a mayúscula el que va después de un espacio o al inicio.</p>
+            <pre><code>String s = "hola mundo cruel";
+StringBuilder sb = new StringBuilder();
+boolean nuevaPalabra = true;
+for (int i = 0; i &lt; s.length(); i++) {
+    char c = s.charAt(i);
+    if (Character.isWhitespace(c)) {
+        sb.append(c);
+        nuevaPalabra = true;
+    } else {
+        if (nuevaPalabra) {
+            sb.append(Character.toUpperCase(c));
+            nuevaPalabra = false;
+        } else {
+            sb.append(c);
+        }
+    }
+}
+System.out.println(sb.toString());   // "Hola Mundo Cruel"</code></pre>
+            <h3>El flag nuevaPalabra</h3>
+            <p>El truco es llevar una bandera <code>nuevaPalabra</code> que se activa cuando venimos de un espacio. Si estamos en una palabra y no venimos de un espacio, dejamos el carácter tal cual. Así conservamos minúsculas en medio de la palabra.</p>
+            <div class="callout">
+              <strong>Disciplina:</strong> las banderas booleanas son el patrón más simple para "recordar estado entre iteraciones". En bucles complejos, lleva banderas claras con buenos nombres.
+            </div>
+          `,
+          mission: `
+            <span class="mission-label">Misión</span>
+            <p>Lee <code>String s = args[0]</code> y capitaliza la primera letra de cada palabra (las demás letras quedan como estén). Imprime el resultado.</p>
+            <p>Ejemplos:</p>
+            <ul>
+              <li>"hola mundo" → "Hola Mundo"</li>
+              <li>"java es genial" → "Java Es Genial"</li>
+              <li>"JAVA" → "JAVA" (ya está mayúscula, sin cambio)</li>
+            </ul>
+          `,
+          starter: `public class Main {
+    public static void main(String[] args) {
+        String s = args[0];
+        // StringBuilder sb = new StringBuilder();
+        // boolean nuevaPalabra = true;
+        // for (int i = 0; i < s.length(); i++) {
+        //     char c = s.charAt(i);
+        //     if (Character.isWhitespace(c)) { sb.append(c); nuevaPalabra = true; }
+        //     else if (nuevaPalabra) { sb.append(Character.toUpperCase(c)); nuevaPalabra = false; }
+        //     else sb.append(c);
+        // }
+        // System.out.println(sb.toString());
+    }
+}`,
+          hints: [
+            'Lleva un boolean nuevaPalabra = true al inicio.',
+            'En cada espacio: append y activar nuevaPalabra.',
+            'En cada letra: si nuevaPalabra, append uppercase y desactivar; si no, append tal cual.'
+          ],
+          tests: [
+            { args: ['hola mundo'], expected: line('Hola Mundo'), name: 'dos palabras' },
+            { args: ['java es genial'], expected: line('Java Es Genial'), name: 'tres palabras' },
+            { args: ['JAVA'], expected: line('JAVA'), name: 'ya mayúscula' },
+            { args: ['hola'], expected: line('Hola'), name: 'una palabra' },
+            { args: ['hola   mundo'], expected: line('Hola   Mundo'), name: 'espacios múltiples' }
+          ]
+        },
+        {
+          id: 'CA.5', title: 'Reemplazar y limpiar',
+          theory: `
+            <h3>replace y replaceAll</h3>
+            <p>El método <code>replace(old, new)</code> sustituye todas las apariciones de un carácter o subcadena por otro. En Java real existe <code>replaceAll(regex, repl)</code> que usa expresiones regulares — potente pero complejo.</p>
+            <pre><code>String s = "hola mundo";
+System.out.println(s.replace('o', '0'));   // "h0la mund0"
+System.out.println(s.replace("mundo", "Java"));   // "hola Java"</code></pre>
+            <h3>Eliminar caracteres</h3>
+            <p>Para eliminar caracteres no deseados (espacios, puntuación), reemplazas por cadena vacía:</p>
+            <pre><code>String s = "Hola, mundo!";
+String limpio = s.replace(",", "").replace("!", "");
+System.out.println(limpio);   // "Hola mundo"</code></pre>
+            <h3>Quitar todos los espacios</h3>
+            <p>Eliminar todos los espacios (para comparar sin considerar espacios):</p>
+            <pre><code>String sinEspacios = s.replace(" ", "");</code></pre>
+            <p>Aquí en el intérprete, <code>replace</code> con strings funciona reemplazando todas las apariciones literales (no regex).</p>
+            <div class="callout">
+              <strong>Disciplina:</strong> cuando limpies texto, opera en cadena: <code>s.replace(",", "").replace("!", "").trim()</code>. Encadenar llamadas (cada una devuelve un String nuevo) es idiomático en Java.
+            </div>
+          `,
+          mission: `
+            <span class="mission-label">Misión</span>
+            <p>Lee <code>String s = args[0]</code>. Elimina todos los caracteres que no sean letras ni dígitos (es decir, deja solo letras y dígitos). Imprime el resultado.</p>
+            <p>Truco: recorre con un StringBuilder y solo append si <code>Character.isLetterOrDigit(c)</code>.</p>
+            <p>Ejemplos:</p>
+            <ul>
+              <li>"Hola, mundo!" → "Holamundo"</li>
+              <li>"tel: 555-1234" → "tel5551234"</li>
+              <li>"   abc   " → "abc"</li>
+            </ul>
+          `,
+          starter: `public class Main {
+    public static void main(String[] args) {
+        String s = args[0];
+        // StringBuilder sb = new StringBuilder();
+        // for (int i = 0; i < s.length(); i++) {
+        //     char c = s.charAt(i);
+        //     if (Character.isLetterOrDigit(c)) sb.append(c);
+        // }
+        // System.out.println(sb.toString());
+    }
+}`,
+          hints: [
+            'Recorre con for, char c = s.charAt(i).',
+            'Character.isLetterOrDigit(c) es true para letras y números.',
+            'Solo append los que pasan el filtro.'
+          ],
+          tests: [
+            { args: ['Hola, mundo!'], expected: line('Holamundo'), name: 'puntuación' },
+            { args: ['tel: 555-1234'], expected: line('tel5551234'), name: 'guiones y dos puntos' },
+            { args: ['   abc   '], expected: line('abc'), name: 'espacios' },
+            { args: ['abc123'], expected: line('abc123'), name: 'sin nada que quitar' },
+            { args: ['!!!???'], expected: line(''), name: 'todo se quita' },
+            { args: ['a.b.c.d'], expected: line('abcd'), name: 'puntos intercalados' }
+          ]
+        },
+        {
+          id: 'CA.6', title: 'Acrónimo',
+          theory: `
+            <h3>Primera letra de cada palabra</h3>
+            <p>Un acrónimo toma la primera letra de cada palabra y las junta. Aparece en abreviaciones de organizaciones: "Organización de Naciones Unidas" → "ONU".</p>
+            <pre><code>String s = "Organización de Naciones Unidas";
+StringBuilder sb = new StringBuilder();
+String[] partes = s.split(" ");
+for (int i = 0; i &lt; partes.length; i++) {
+    if (partes[i].length() > 0) {
+        sb.append(Character.toUpperCase(partes[i].charAt(0)));
+    }
+}
+System.out.println(sb.toString());   // "ODNU"</code></pre>
+            <h3>Comprobar palabras vacías</h3>
+            <p>Si hay espacios dobles, <code>split</code> puede generar partes vacías. Por eso comprobamos <code>partes[i].length() > 0</code> antes de tomar <code>charAt(0)</code> (que lanzaría error si la cadena es vacía).</p>
+            <h3>Mayúsculas</h3>
+            <p>Convertimos cada primera letra a mayúscula para que el acrónimo sea consistente (si la palabra empieza en minúscula, queremos que el acrónimo también la lleve a mayúscula).</p>
+            <div class="callout">
+              <strong>Disciplina:</strong> los acrónimos son case-insensitive en la entrada pero case-consistent en la salida. Decide y aplica una regla (aquí: mayúsculas siempre).
+            </div>
+          `,
+          mission: `
+            <span class="mission-label">Misión</span>
+            <p>Lee <code>String s = args[0]</code> y construye el acrónimo tomando la primera letra de cada palabra en mayúscula.</p>
+            <p>Ejemplos:</p>
+            <ul>
+              <li>"hola mundo cruel" → "HMC"</li>
+              <li>"Organizacion Naciones Unidas" → "ONU"</li>
+              <li>"java" → "J"</li>
+              <li>"a b c" → "ABC"</li>
+            </ul>
+          `,
+          starter: `public class Main {
+    public static void main(String[] args) {
+        String s = args[0];
+        // String[] partes = s.split(" ");
+        // StringBuilder sb = new StringBuilder();
+        // for (int i = 0; i < partes.length; i++) {
+        //     if (partes[i].length() > 0) {
+        //         sb.append(Character.toUpperCase(partes[i].charAt(0)));
+        //     }
+        // }
+        // System.out.println(sb.toString());
+    }
+}`,
+          hints: [
+            'split(" ") divide en palabras.',
+            'charAt(0) devuelve el primer carácter; Character.toUpperCase lo pone en mayúscula.',
+            'Comprueba partes[i].length() > 0 antes de charAt(0).'
+          ],
+          tests: [
+            { args: ['hola mundo cruel'], expected: line('HMC'), name: 'tres palabras' },
+            { args: ['Organizacion Naciones Unidas'], expected: line('ONU'), name: 'ONU' },
+            { args: ['java'], expected: line('J'), name: 'una palabra' },
+            { args: ['a b c'], expected: line('ABC'), name: 'letras solas' },
+            { args: ['ministerio educacion cultura'], expected: line('MEC'), name: 'MEC' },
+            { args: ['java development kit'], expected: line('JDK'), name: 'JDK' }
+          ]
+        }
+      ]
+    },
+
+    // ============================================================
+    // MÓDULO WR — Wrappers (envoltorios)
+    // ============================================================
+    {
+      id: 'WR', name: 'Wrappers', subtitle: 'Integer, Double, Boolean, Character: objetos para primitivos',
+      lessons: [
+        {
+          id: 'WR.1', title: 'Integer: parse y toString',
+          theory: `
+            <h3>Wrappers — el puente primitivo/objeto</h3>
+            <p>Java tiene tipos primitivos (<code>int</code>, <code>double</code>, <code>boolean</code>, <code>char</code>) y sus equivalentes "envoltorios" en clases: <code>Integer</code>, <code>Double</code>, <code>Boolean</code>, <code>Character</code>. Los wrappers son objetos — pueden ser <code>null</code>, almacenarse en colecciones genéricas, tener métodos estáticos.</p>
+            <h3>Métodos estáticos útiles</h3>
+            <pre><code>int n = Integer.parseInt("42");          // String -> int
+String s = Integer.toString(42);          // int -> String
+int max = Integer.MAX_VALUE;             // 2147483647
+int min = Integer.MIN_VALUE;             // -2147483648</code></pre>
+            <h3>Convertir a String con toString</h3>
+            <p>Cualquier número se convierte a String con <code>Integer.toString(n)</code> o <code>String.valueOf(n)</code>:</p>
+            <pre><code>System.out.println(Integer.toString(42));        // "42"
+System.out.println(Integer.toString(255));        // "255"
+System.out.println(Integer.toString(255, 16));   // "ff" (en base 16) — el intérprete solo soporta base 10</code></pre>
+            <h3>Autoboxing / unboxing</h3>
+            <p>Java convierte automáticamente entre <code>int</code> y <code>Integer</code>:</p>
+            <pre><code>Integer a = 5;     // autoboxing: int 5 -> Integer 5
+int b = a;         // unboxing: Integer 5 -> int 5</code></pre>
+            <p>En colecciones genéricas, debes usar wrappers (no primitivos): <code>ArrayList&lt;Integer&gt;</code>, no <code>ArrayList&lt;int&gt;</code>.</p>
+            <div class="callout">
+              <strong>Disciplina:</strong> usa primitivos (<code>int</code>, <code>double</code>) para cálculos intensivos (sin overhead de objeto). Usa wrappers cuando necesitas colecciones, nulabilidad o métodos estáticos.
+            </div>
+          `,
+          mission: `
+            <span class="mission-label">Misión</span>
+            <p>Lee un número como texto de <code>args[0]</code>. Conviértelo a <code>int</code> con <code>Integer.parseInt</code>, súmale 10, y vuelve a convertirlo a String con <code>Integer.toString</code>. Imprime el resultado.</p>
+            <p>Ejemplos:</p>
+            <ul>
+              <li>"5" → "15"</li>
+              <li>"100" → "110"</li>
+              <li>"-3" → "7"</li>
+              <li>"0" → "10"</li>
+            </ul>
+          `,
+          starter: `public class Main {
+    public static void main(String[] args) {
+        String s = args[0];
+        // int n = Integer.parseInt(s);
+        // n += 10;
+        // String resultado = Integer.toString(n);
+        // System.out.println(resultado);
+    }
+}`,
+          hints: [
+            'Integer.parseInt(s) convierte String en int.',
+            'Suma 10 con n += 10;.',
+            'Integer.toString(n) convierte int en String.'
+          ],
+          tests: [
+            { args: ['5'], expected: line('15'), name: '5 + 10' },
+            { args: ['100'], expected: line('110'), name: '100 + 10' },
+            { args: ['-3'], expected: line('7'), name: '-3 + 10' },
+            { args: ['0'], expected: line('10'), name: '0 + 10' },
+            { args: ['42'], expected: line('52'), name: '42 + 10' }
+          ]
+        },
+        {
+          id: 'WR.2', title: 'Comparar Doubles sin perder precisión',
+          theory: `
+            <h3>El problema de los decimales</h3>
+            <p>Los <code>double</code> no representan exactamente todos los decimales. Esto produce bugs clásicos:</p>
+            <pre><code>double a = 0.1 + 0.2;
+double b = 0.3;
+System.out.println(a == b);   // ¡false! a es 0.30000000000000004</code></pre>
+            <h3>Comparar con epsilon</h3>
+            <p>La solución profesional: comparar con un "epsilon" pequeño (tolerancia). Si la diferencia es menor que epsilon, los consideramos iguales:</p>
+            <pre><code>double a = 0.1 + 0.2;
+double b = 0.3;
+double EPS = 1e-9;
+boolean iguales = Math.abs(a - b) &lt; EPS;
+System.out.println(iguales);   // true</code></pre>
+            <h3>El wrapper Double</h3>
+            <p><code>Double</code> ofrece métodos útiles:</p>
+            <ul>
+              <li><code>Double.parseDouble(s)</code> — String a double.</li>
+              <li><code>Double.toString(d)</code> — double a String.</li>
+              <li><code>Double.isNaN(d)</code> — ¿es Not-a-Number (0.0/0.0)?</li>
+              <li><code>Double.isInfinite(d)</code> — ¿es infinito (1.0/0.0)?</li>
+              <li><code>Double.MAX_VALUE</code>, <code>Double.MIN_VALUE</code> — límites.</li>
+            </ul>
+            <div class="callout warn">
+              <strong>Cuidado:</strong> nunca compares doubles con <code>==</code> salvo que estés seguro de que no hay pérdida de precisión (p.ej., enteros representables). En cualquier cálculo, usa epsilon.
+            </div>
+          `,
+          mission: `
+            <span class="mission-label">Misión</span>
+            <p>Lee dos números como <code>double a = Double.parseDouble(args[0])</code> y <code>double b = Double.parseDouble(args[1])</code>. Imprime <code>"iguales"</code> si son iguales con un epsilon de 1e-9 (<code>Math.abs(a - b) &lt; 1e-9</code>), o <code>"diferentes"</code> en caso contrario.</p>
+            <p>Ejemplos:</p>
+            <ul>
+              <li>"0.3" "0.3" → iguales</li>
+              <li>"0.1" "0.2" → diferentes (su suma no es 0.3, pero aquí son distintos: 0.1 ≠ 0.2)</li>
+              <li>"1.0" "1.0" → iguales</li>
+              <li>"3.14159" "3.1415" → diferentes (la diferencia es 0.00009)</li>
+              <li>"0.1" "0.1000000001" → iguales (diferencia es 1e-10, menor que 1e-9)</li>
+            </ul>
+          `,
+          starter: `public class Main {
+    public static void main(String[] args) {
+        double a = Double.parseDouble(args[0]);
+        double b = Double.parseDouble(args[1]);
+        // double EPS = 1e-9;
+        // if (Math.abs(a - b) < EPS) System.out.println("iguales");
+        // else System.out.println("diferentes");
+    }
+}`,
+          hints: [
+            'Double.parseDouble convierte String a double.',
+            'Math.abs(a - b) es el valor absoluto de la diferencia.',
+            'Compara con < 1e-9 (1e-9 es 0.000000001).'
+          ],
+          tests: [
+            { args: ['0.3', '0.3'], expected: line('iguales'), name: 'iguales exactos' },
+            { args: ['0.1', '0.2'], expected: line('diferentes'), name: '0.1 vs 0.2' },
+            { args: ['1.0', '1.0'], expected: line('iguales'), name: 'iguales' },
+            { args: ['3.14159', '3.1415'], expected: line('diferentes'), name: 'diferentes' },
+            { args: ['0.1', '0.1000000001'], expected: line('iguales'), name: 'casi iguales (epsilon)' },
+            { args: ['10', '10.0001'], expected: line('diferentes'), name: 'diferencia visible' }
+          ]
+        },
+        {
+          id: 'WR.3', title: 'Boolean parseBoolean y operaciones',
+          theory: `
+            <h3>El wrapper Boolean</h3>
+            <p><code>Boolean</code> es el envoltorio de <code>boolean</code>. Su método <code>parseBoolean</code> convierte un String a boolean:</p>
+            <pre><code>Boolean.parseBoolean("true");   // true
+Boolean.parseBoolean("false");   // false
+Boolean.parseBoolean("TRUE");   // true (case-insensitive)
+Boolean.parseBoolean("algo");   // false (todo lo que no sea "true" — case-insensitive — es false)</code></pre>
+            <h3>Operadores lógicos con boolean</h3>
+            <p>Ya los conoces:</p>
+            <ul>
+              <li><code>a && b</code> — AND lógico</li>
+              <li><code>a || b</code> — OR lógico</li>
+              <li><code>!a</code> — NOT</li>
+              <li><code>a ^ b</code> — XOR (true si son distintos)</li>
+            </ul>
+            <h3>Patrón: banderas como bits</h3>
+            <p>En ingeniería y cibernética, a menudo representamos estados binarios con booleanos. La señal está activa (true) o inactiva (false). Combinar varias señales con <code>&amp;&amp;</code> (intersección) o <code>||</code> (unión) es la base de la lógica de control.</p>
+            <pre><code>boolean sensorA = true;
+boolean sensorB = false;
+boolean alarma = sensorA && !sensorB;   // A activo y B no activo</code></pre>
+            <div class="callout">
+              <strong>Disciplina:</strong> nombrar booleanos como preguntas ("esValido", "tieneDatos", "puedeAvanzar") facilita la lectura. Un booleano es respuesta a una pregunta.
+            </div>
+          `,
+          mission: `
+            <span class="mission-label">Misión</span>
+            <p>Lee dos strings como booleanos: <code>boolean a = Boolean.parseBoolean(args[0])</code>, <code>boolean b = Boolean.parseBoolean(args[1])</code>. Imprime en tres líneas:</p>
+            <ol>
+              <li>AND lógico (<code>a &amp;&amp; b</code>)</li>
+              <li>OR lógico (<code>a || b</code>)</li>
+              <li>XOR lógico (<code>a ^ b</code> — verdadero si son distintos)</li>
+            </ol>
+            <p>Ejemplo: "true" "false" → <code>false</code>, <code>true</code>, <code>true</code>.</p>
+          `,
+          starter: `public class Main {
+    public static void main(String[] args) {
+        boolean a = Boolean.parseBoolean(args[0]);
+        boolean b = Boolean.parseBoolean(args[1]);
+        // System.out.println(a && b);
+        // System.out.println(a || b);
+        // System.out.println(a ^ b);
+    }
+}`,
+          hints: [
+            'Boolean.parseBoolean convierte "true"/"false" a boolean.',
+            'Java: a && b es AND, a || b es OR, a ^ b es XOR.',
+            'println imprime boolean como "true" o "false".'
+          ],
+          tests: [
+            { args: ['true', 'false'], expected: lines('false', 'true', 'true'), name: 'true/false' },
+            { args: ['true', 'true'], expected: lines('true', 'true', 'false'), name: 'true/true' },
+            { args: ['false', 'false'], expected: lines('false', 'false', 'false'), name: 'false/false' },
+            { args: ['false', 'true'], expected: lines('false', 'true', 'true'), name: 'false/true' }
+          ]
+        },
+        {
+          id: 'WR.4', title: 'Carácter: ASCII y conversiones',
+          theory: `
+            <h3>char e int</h3>
+            <p>En Java, un <code>char</code> es internamente un número (su código Unicode). Puedes convertir entre char e int:</p>
+            <pre><code>char c = 'A';
+int codigo = (int) c;     // 65 (ASCII de 'A')
+char back = (char) 97;    // 'a' (ASCII 97)</code></pre>
+            <h3>Tabla ASCII</h3>
+            <p>Los caracteres del ASCII estándar ocupan los códigos 32-127:</p>
+            <ul>
+              <li>'0'-'9' = 48-57</li>
+              <li>'A'-'Z' = 65-90</li>
+              <li>'a'-'z' = 97-122</li>
+              <li>' ' (espacio) = 32</li>
+            </ul>
+            <h3>Wrapper Character</h3>
+            <p>Métodos estáticos:</p>
+            <ul>
+              <li><code>Character.isDigit(c)</code>, <code>Character.isLetter(c)</code>, <code>Character.isWhitespace(c)</code></li>
+              <li><code>Character.toUpperCase(c)</code>, <code>Character.toLowerCase(c)</code></li>
+              <li><code>Character.getNumericValue(c)</code> — el valor numérico del carácter (p.ej., '5' → 5)</li>
+            </ul>
+            <h3>Distancia entre mayúscula y minúscula</h3>
+            <p>Entre 'A' (65) y 'a' (97) hay 32 posiciones. Convertir mayúscula a minúscula: <code>c + 32</code> (en ASCII). O más limpio: <code>Character.toLowerCase(c)</code>.</p>
+            <div class="callout">
+              <strong>Disciplina:</strong> en problemas de hashing, criptografía simple y codificación, manipular chars como números es muy común. Aprende la tabla ASCII básica de memoria.
+            </div>
+          `,
+          mission: `
+            <span class="mission-label">Misión</span>
+            <p>Lee <code>String s = args[0]</code> (un solo carácter). Imprime su código ASCII (entero) en la primera línea, y el carácter "espejo" (mayúscula↔minúscula) en la segunda.</p>
+            <p>Para el "espejo": si el carácter es minúscula, conviértelo a mayúscula y viceversa. Si no es letra, déjalo igual.</p>
+            <p>Ejemplos:</p>
+            <ul>
+              <li>"A" → 65, "a"</li>
+              <li>"b" → 98, "B"</li>
+              <li>"5" → 53, "5" (no es letra, se queda igual)</li>
+              <li>"Z" → 90, "z"</li>
+            </ul>
+          `,
+          starter: `public class Main {
+    public static void main(String[] args) {
+        String s = args[0];
+        // char c = s.charAt(0);
+        // int ascii = (int) c;
+        // System.out.println(ascii);
+        // if (Character.isUpperCase(c)) System.out.println(Character.toLowerCase(c));
+        // else if (Character.isLowerCase(c)) System.out.println(Character.toUpperCase(c));
+        // else System.out.println(c);
+    }
+}`,
+          hints: [
+            '(int) c convierte char a su código ASCII.',
+            'Character.isUpperCase(c) / isLowerCase(c) clasifican.',
+            'Character.toUpperCase(c) / toLowerCase(c) convierten.'
+          ],
+          tests: [
+            { args: ['A'], expected: lines('65', 'a'), name: 'A → a' },
+            { args: ['b'], expected: lines('98', 'B'), name: 'b → B' },
+            { args: ['5'], expected: lines('53', '5'), name: '5 → 5' },
+            { args: ['Z'], expected: lines('90', 'z'), name: 'Z → z' },
+            { args: ['a'], expected: lines('97', 'A'), name: 'a → A' },
+            { args: [' '], expected: lines('32', ' '), name: 'espacio' }
+          ]
+        }
+      ]
+    },
+
+    // ============================================================
+    // MÓDULO BU — Builders (constructores tipo builder)
+    // ============================================================
+    {
+      id: 'BU', name: 'Builders', subtitle: 'Constructores fluidos, encadenamiento de métodos',
+      lessons: [
+        {
+          id: 'BU.1', title: 'Builder básico (Pizza v2)',
+          theory: `
+            <h3>Recordamos: el patrón Builder</h3>
+            <p>En 10.3 vimos el patrón Builder para construir objetos paso a paso. Aquí lo profundizamos con más casos. El Builder es útil cuando una clase tiene muchos campos opcionales y quieres una sintaxis fluida:</p>
+            <pre><code>Pizza p = new PizzaBuilder()
+    .masa("fina")
+    .queso()
+    .tomate()
+    .build();</code></pre>
+            <h3>El secreto: devolver <code>this</code></h3>
+            <p>Cada método del Builder devuelve <code>this</code> (el propio Builder), lo que permite encadenar. Sin esto, tendrías que escribir cada llamada en una línea separada.</p>
+            <pre><code>class PizzaBuilder {
+    private Pizza p = new Pizza();
+    PizzaBuilder masa(String m) { p.masa = m; return this; }
+    PizzaBuilder queso() { p.queso = true; return this; }
+    Pizza build() { return p; }
+}</code></pre>
+            <h3>El constructor privado</h3>
+            <p>El constructor de <code>Pizza</code> se declara <code>private</code>, así nadie puede hacer <code>new Pizza()</code> directamente — debe pasar por el Builder. (En nuestro intérprete, no validamos private, pero la convención importa.)</p>
+            <div class="callout">
+              <strong>Disciplina:</strong> el Builder no es gratuito — añade una clase extra. Úsalo cuando tienes 4+ campos opcionales y la sintaxis fluida realmente ayuda. Para 2 campos, un constructor normal es más simple.
+            </div>
+          `,
+          mission: `
+            <span class="mission-label">Misión</span>
+            <p>Implementa <code>class Pizza</code> con campos privados: <code>String masa</code> (default "delgada"), <code>boolean queso</code>, <code>boolean tomate</code>, <code>boolean pepperoni</code>. Implementa <code>class PizzaBuilder</code> con métodos encadenables: <code>masa(String)</code>, <code>queso()</code>, <code>tomate()</code>, <code>pepperoni()</code>, <code>build()</code>. En <code>main</code>: construye una pizza con masa "gruesa", con queso y pepperoni. Método <code>String describe()</code> en Pizza que devuelva "Pizza masa X con Y Z W" (con espacios, solo ingredientes activos).</p>
+            <p>Ejemplo de salida: "Pizza masa gruesa con queso pepperoni "</p>
+          `,
+          starter: `public class Main {
+    public static void main(String[] args) {
+        // Pizza p = new PizzaBuilder().masa("gruesa").queso().pepperoni().build();
+        // System.out.println(p.describe());
+    }
+}
+
+class Pizza {
+    // private String masa = "delgada";
+    // private boolean queso = false;
+    // private boolean tomate = false;
+    // private boolean pepperoni = false;
+    // private Pizza() {}
+    // String describe() {
+    //     return "Pizza masa " + masa + " con " + (queso ? "queso " : "") + (tomate ? "tomate " : "") + (pepperoni ? "pepperoni " : "");
+    // }
+}
+
+class PizzaBuilder {
+    // private Pizza p = new Pizza();
+    // PizzaBuilder masa(String m) { p.masa = m; return this; }
+    // PizzaBuilder queso() { p.queso = true; return this; }
+    // PizzaBuilder tomate() { p.tomate = true; return this; }
+    // PizzaBuilder pepperoni() { p.pepperoni = true; return this; }
+    // Pizza build() { return p; }
+}`,
+          hints: [
+            'Cada método del Builder devuelve this (salvo build).',
+            'Pizza.describe concatena los ingredientes activos con espacios.',
+            'En main: new PizzaBuilder().masa("gruesa").queso().pepperoni().build()'
+          ],
+          tests: [
+            { args: [], expected: line('Pizza masa gruesa con queso pepperoni '), name: 'pizza con pepperoni' }
+          ]
+        },
+        {
+          id: 'BU.2', title: 'StringBuilder — el builder de Strings',
+          theory: `
+            <h3>StringBuilder no es un patrón, es una clase</h3>
+            <p>Aunque se llama "Builder", <code>StringBuilder</code> es literalmente una clase de Java para construir Strings eficientemente. La concatenación con <code>+</code> crea un nuevo String cada vez (O(n²) si concatenas muchas); StringBuilder usa un buffer interno mutable (O(n)).</p>
+            <pre><code>StringBuilder sb = new StringBuilder();
+for (int i = 0; i &lt; 10; i++) {
+    sb.append(i).append(" ");   // append devuelve this, encadenable
+}
+String resultado = sb.toString();   // "0 1 2 3 4 5 6 7 8 9 "</code></pre>
+            <h3>Métodos útiles</h3>
+            <ul>
+              <li><code>append(x)</code> — añade cualquier cosa (int, String, char, boolean, ...).</li>
+              <li><code>insert(pos, x)</code> — inserta en posición.</li>
+              <li><code>delete(start, end)</code> — borra rango.</li>
+              <li><code>reverse()</code> — invierte el contenido.</li>
+              <li><code>length()</code> — longitud actual.</li>
+              <li><code>charAt(i)</code>, <code>setCharAt(i, c)</code>.</li>
+              <li><code>toString()</code> — convierte a String inmutable.</li>
+            </ul>
+            <h3>Encadenamiento real</h3>
+            <p>Como <code>append</code> devuelve <code>this</code>, puedes escribir:</p>
+            <pre><code>sb.append("Hola").append(" ").append("mundo").append("!");</code></pre>
+            <p>Esto es el patrón Builder aplicado a la concatenación de Strings.</p>
+            <div class="callout">
+              <strong>Disciplina:</strong> si vas a concatenar más de ~5 strings en un bucle, usa StringBuilder. Para 2-3 concatenaciones puntuales, <code>+</code> es perfectamente aceptable y más legible.
+            </div>
+          `,
+          mission: `
+            <span class="mission-label">Misión</span>
+            <p>Usa <code>StringBuilder</code> para construir un String con los números del 1 al 10 separados por comas. Imprime el resultado (sin coma al final).</p>
+            <pre><code>1,2,3,4,5,6,7,8,9,10</code></pre>
+          `,
+          starter: `public class Main {
+    public static void main(String[] args) {
+        // StringBuilder sb = new StringBuilder();
+        // for (int i = 1; i <= 10; i++) {
+        //     if (i > 1) sb.append(",");
+        //     sb.append(i);
+        // }
+        // System.out.println(sb.toString());
+    }
+}`,
+          hints: [
+            'Empieza el bucle en i = 1.',
+            'Antes de append(i), si i > 1, append(",") — así no hay coma al inicio.',
+            'Al final, sb.toString() convierte a String.'
+          ],
+          tests: [
+            { args: [], expected: line('1,2,3,4,5,6,7,8,9,10'), name: 'lista de 1..10' }
+          ]
+        },
+        {
+          id: 'BU.3', title: 'Builder con validación',
+          theory: `
+            <h3>Validar antes de construir</h3>
+            <p>Un Builder profesional valida los campos antes de construir el objeto. Si algo falta, lanza una excepción o devuelve un objeto "fallido".</p>
+            <pre><code>class UsuarioBuilder {
+    private String nombre;
+    private int edad;
+    UsuarioBuilder nombre(String n) {
+        if (n == null || n.isEmpty()) throw new RuntimeException("nombre requerido");
+        this.nombre = n;
+        return this;
+    }
+    UsuarioBuilder edad(int e) {
+        if (e &lt; 0 || e > 150) throw new RuntimeException("edad inválida");
+        this.edad = e;
+        return this;
+    }
+    Usuario build() {
+        if (nombre == null) throw new RuntimeException("falta nombre");
+        return new Usuario(nombre, edad);
+    }
+}</code></pre>
+            <h3>Por qué validar en el Builder</h3>
+            <p>Si validas en el constructor de <code>Usuario</code>, el objeto "medio construido" podría existir. Validar en el Builder significa que <code>build()</code> solo devuelve objetos válidos — el cliente nunca recibe un objeto a medio inicializar.</p>
+            <h3>Lanzar excepciones</h3>
+            <p>En Java real: <code>throw new IllegalArgumentException("...")</code>. En este intérprete, <code>throw new RuntimeException("...")</code> se captura y se muestra el mensaje como error de ejecución. Aquí lo simularemos imprimiendo un mensaje de error y devolviendo null.</p>
+            <div class="callout">
+              <strong>Disciplina:</strong> la validación en el Builder sigue el principio "fail-fast": falla pronto, con un mensaje claro. No dejes que el objeto inválido llegue a producción.
+            </div>
+          `,
+          mission: `
+            <span class="mission-label">Misión</span>
+            <p>Implementa <code>class Usuario</code> con campos <code>String nombre</code> e <code>int edad</code>. Implementa <code>class UsuarioBuilder</code> con métodos <code>nombre(String)</code> (valida que no sea null ni vacío; si falla, marca el builder como inválido) y <code>edad(int)</code> (valida que esté entre 0 y 150; si no, marca como inválido). Método <code>build()</code> que devuelve el <code>Usuario</code> si todo es válido, o <code>null</code> si alguna validación falló. Método <code>boolean isValid()</code> en el builder para consultar.</p>
+            <p>En <code>main</code>, prueba con dos casos:</p>
+            <ol>
+              <li><code>new UsuarioBuilder().nombre("Ana").edad(30).build()</code> — imprime "Ana,30"</li>
+              <li><code>new UsuarioBuilder().edad(200).build()</code> — devuelve null, imprime "Error: edad inválida" (comprueba con if)</li>
+            </ol>
+            <p>Salida:</p>
+            <pre><code>Ana,30
+Error: edad inválida</code></pre>
+          `,
+          starter: `public class Main {
+    public static void main(String[] args) {
+        // Caso 1: válido
+        // Usuario u1 = new UsuarioBuilder().nombre("Ana").edad(30).build();
+        // if (u1 != null) System.out.println(u1.nombre + "," + u1.edad);
+        // Caso 2: edad inválida
+        // Usuario u2 = new UsuarioBuilder().edad(200).build();
+        // if (u2 == null) System.out.println("Error: edad inválida");
+    }
+}
+
+class Usuario {
+    String nombre;
+    int edad;
+    Usuario(String n, int e) { nombre = n; edad = e; }
+}
+
+class UsuarioBuilder {
+    // private String nombre;
+    // private int edad;
+    // private boolean valida = true;
+    // UsuarioBuilder nombre(String n) {
+    //     if (n == null || n.isEmpty()) { valida = false; return this; }
+    //     nombre = n; return this;
+    // }
+    // UsuarioBuilder edad(int e) {
+    //     if (e < 0 || e > 150) { valida = false; return this; }
+    //     edad = e; return this;
+    // }
+    // Usuario build() {
+    //     if (!valida) return null;
+    //     return new Usuario(nombre, edad);
+    // }
+}`,
+          hints: [
+            'El builder lleva una bandera "valida" que se pone false si algo falla.',
+            'Los setters NO imprimen — solo marcan como inválido.',
+            'En main, comprueba si build() devolvió null — si sí, imprime el mensaje de error correspondiente.'
+          ],
+          tests: [
+            { args: [], expected: lines('Ana,30', 'Error: edad inválida'), name: 'caso válido + caso inválido' }
+          ]
+        },
+        {
+          id: 'BU.4', title: 'Builder inmutable (devolver copias)',
+          theory: `
+            <h3>Builders inmutables</h3>
+            <p>Una variante avanzada del Builder: en vez de devolver <code>this</code>, devolver <em>una nueva copia</em> del Builder. Así el Builder original no se modifica, y puedes "ramificar" configuraciones distintas:</p>
+            <pre><code>Config base = new Config().with("color", "rojo");
+Config azul = base.with("color", "azul");
+// base sigue siendo "rojo", azul es "azul"</code></pre>
+            <h3>El truco</h3>
+            <p>Cada método <code>with(...)</code> crea un nuevo <code>Config</code> con el cambio aplicado. Esto se llama patrón <em>With</em> o "copy-modify". Es la base de las estructuras inmutables funcionales (como las colecciones persistentes de Clojure o Scala).</p>
+            <pre><code>class Config {
+    private String clave;
+    private String valor;
+    private Config(String k, String v) { clave = k; valor = v; }
+    static Config crear() { return new Config("", ""); }
+    Config with(String k, String v) { return new Config(k, v); }
+    String describe() { return clave + "=" + valor; }
+}</code></pre>
+            <h3>Inmutabilidad: pros y contras</h3>
+            <p>Pros: más seguro en concurrencia (no hay estado compartido modificable), fácil de razonar, sin side-effects. Contras: cada modificación crea un objeto nuevo — más GC, más memoria.</p>
+            <h3>Cuándo usar</h3>
+            <p>En cibernética y sistemas de tiempo real, los objetos inmutables facilitan el razonamiento sobre estados múltiples. En juegos, pueden ser útiles para "snapshots" del estado del juego (p.ej. para guardar/cargar).</p>
+            <div class="callout">
+              <strong>Disciplina:</strong> la inmutabilidad no es siempre la respuesta. Para objetos que cambian mucho, mutabilidad es mejor. Para configuraciones, opciones y snapshots, inmutabilidad gana.
+            </div>
+          `,
+          mission: `
+            <span class="mission-label">Misión</span>
+            <p>Implementa <code>class Config</code> inmutable con campos <code>String clave</code> e <code>int valor</code>. Constructor privado. Método estático <code>crear()</code> que devuelve Config con clave="" y valor=0. Método <code>with(clave, valor)</code> que devuelve un <strong>nuevo</strong> Config con los nuevos valores. Método <code>describe()</code> que devuelve "clave=valor". En <code>main</code>: crea base con <code>Config.crear()</code>, ramifica a <code>c1 = base.with("color", 1)</code> y <code>c2 = base.with("tamano", 2)</code>. Imprime <code>base.describe()</code>, <code>c1.describe()</code>, <code>c2.describe()</code> en tres líneas.</p>
+            <pre><code>=0
+color=1
+tamano=2</code></pre>
+            <p>(Nota: con <code>Config.crear()</code>, base tiene clave="" y valor=0, así describe imprime "=0".)</p>
+          `,
+          starter: `public class Main {
+    public static void main(String[] args) {
+        // Config base = Config.crear();
+        // Config c1 = base.with("color", 1);
+        // Config c2 = base.with("tamano", 2);
+        // System.out.println(base.describe());
+        // System.out.println(c1.describe());
+        // System.out.println(c2.describe());
+    }
+}
+
+class Config {
+    // private String clave;
+    // private int valor;
+    // private Config(String k, int v) { clave = k; valor = v; }
+    // static Config crear() { return new Config("", 0); }
+    // Config with(String k, int v) { return new Config(k, v); }
+    // String describe() { return clave + "=" + valor; }
+}`,
+          hints: [
+            'El constructor es private. static crear() construye el vacío.',
+            'with(k, v) devuelve new Config(k, v) — un nuevo objeto, no modifica this.',
+            'describe() concatena clave + "=" + valor.'
+          ],
+          tests: [
+            { args: [], expected: lines('=0', 'color=1', 'tamano=2'), name: 'tres configs inmutables' }
+          ]
+        }
+      ]
+    },
+
+    // ============================================================
+    // MÓDULO CI — Cibernética / Ingeniería Informática / Automática
+    // ============================================================
+    {
+      id: 'CI', name: 'Cibernética & Bits', subtitle: 'Operaciones a nivel de bits — Ingeniería Informática, Cibernética, Automática',
+      lessons: [
+        {
+          id: 'CI.1', title: 'Decimal a binario',
+          theory: `
+            <h3>Representación binaria</h3>
+            <p>Los computadores trabajan en binario. Cada dígito binario (bit) es 0 o 1. Un byte son 8 bits. Convertir decimal a binario es uno de los primeros ejercicios en cualquier curso de arquitectura de computadores.</p>
+            <h3>Algoritmo de división sucesiva</h3>
+            <p>Para convertir un número decimal a binario, divides entre 2 repetidamente y tomas los restos en orden inverso:</p>
+            <pre><code>int n = 13;
+StringBuilder sb = new StringBuilder();
+if (n == 0) sb.append("0");
+while (n > 0) {
+    sb.append(n % 2);   // resto (0 o 1)
+    n = n / 2;
+}
+String binario = sb.reverse().toString();
+System.out.println(binario);   // "1101"</code></pre>
+            <h3>Por qué reverse al final</h3>
+            <p>Los restos se obtienen del menos significativo al más significativo. Por eso hay que invertir el resultado al final.</p>
+            <p>Verificación: 13 = 8 + 4 + 1 = 2³ + 2² + 2⁰ = "1101".</p>
+            <div class="callout">
+              <strong>Disciplina:</strong> este algoritmo (división sucesiva por la base objetivo) funciona para cualquier base: 2 (binario), 8 (octal), 16 (hexadecimal). Solo cambia el divisor y los "dígitos" permitidos.
+            </div>
+          `,
+          mission: `
+            <span class="mission-label">Misión</span>
+            <p>Lee <code>int n = Integer.parseInt(args[0])</code> e imprime su representación binaria (sin ceros a la izquierda).</p>
+            <p>Ejemplos:</p>
+            <ul>
+              <li>13 → 1101</li>
+              <li>0 → 0</li>
+              <li>1 → 1</li>
+              <li>255 → 11111111</li>
+              <li>16 → 10000</li>
+            </ul>
+          `,
+          starter: `public class Main {
+    public static void main(String[] args) {
+        int n = Integer.parseInt(args[0]);
+        // if (n == 0) { System.out.println("0"); return; }
+        // StringBuilder sb = new StringBuilder();
+        // while (n > 0) {
+        //     sb.append(n % 2);
+        //     n = n / 2;
+        // }
+        // System.out.println(sb.reverse().toString());
+    }
+}`,
+          hints: [
+            'Caso especial: n == 0 → imprime "0" directamente.',
+            'En el bucle: append(n % 2), luego n = n / 2.',
+            'Al final, reverse para que el bit más significativo quede primero.'
+          ],
+          tests: [
+            { args: ['13'], expected: line('1101'), name: '13 → 1101' },
+            { args: ['0'], expected: line('0'), name: '0 → 0' },
+            { args: ['1'], expected: line('1'), name: '1 → 1' },
+            { args: ['255'], expected: line('11111111'), name: '255 → 11111111' },
+            { args: ['16'], expected: line('10000'), name: '16 → 10000' },
+            { args: ['2'], expected: line('10'), name: '2 → 10' }
+          ]
+        },
+        {
+          id: 'CI.2', title: 'Binario a decimal',
+          theory: `
+            <h3>El algoritmo inverso</h3>
+            <p>Para convertir un String binario a decimal, recorres de izquierda a derecha. En cada paso, multiplicas el acumulador por 2 y sumas el bit actual:</p>
+            <pre><code>String bin = "1101";
+int n = 0;
+for (int i = 0; i &lt; bin.length(); i++) {
+    n = n * 2 + (bin.charAt(i) - '0');
+}
+System.out.println(n);   // 13</code></pre>
+            <h3>Por qué esto funciona</h3>
+            <p>El binario "1101" significa: 1×2³ + 1×2² + 0×2¹ + 1×2⁰ = 8 + 4 + 0 + 1 = 13.</p>
+            <p>El algoritmo "multiplica y suma" calcula exactamente esto: tras leer "1" → 1; tras leer "11" → 1×2 + 1 = 3; tras leer "110" → 3×2 + 0 = 6; tras leer "1101" → 6×2 + 1 = 13.</p>
+            <h3>Por qué char - '0'</h3>
+            <p><code>bin.charAt(i)</code> devuelve un <code>char</code>. Para convertirlo a su valor numérico (0 o 1), le restamos el código de '0'. Como '0' tiene código 48 y '1' tiene 49, <code>'1' - '0'</code> = 1. Esto se llama "restar el offset ASCII".</p>
+            <div class="callout">
+              <strong>Disciplina:</strong> este algoritmo de Horner ("multiplica y suma") funciona para cualquier base. Para octal, multiplica por 8; para hexadecimal, por 16. Muy útil.
+            </div>
+          `,
+          mission: `
+            <span class="mission-label">Misión</span>
+            <p>Lee <code>String bin = args[0]</code> (un número binario) e imprime su valor decimal.</p>
+            <p>Ejemplos:</p>
+            <ul>
+              <li>"1101" → 13</li>
+              <li>"0" → 0</li>
+              <li>"1" → 1</li>
+              <li>"11111111" → 255</li>
+              <li>"10000" → 16</li>
+            </ul>
+          `,
+          starter: `public class Main {
+    public static void main(String[] args) {
+        String bin = args[0];
+        // int n = 0;
+        // for (int i = 0; i < bin.length(); i++) {
+        //     n = n * 2 + (bin.charAt(i) - '0');
+        // }
+        // System.out.println(n);
+    }
+}`,
+          hints: [
+            'Recorre cada carácter con for.',
+            "bin.charAt(i) - '0' convierte el carácter a su valor numérico 0 o 1.",
+            'Acumula con n = n * 2 + bit.'
+          ],
+          tests: [
+            { args: ['1101'], expected: line('13'), name: '1101 → 13' },
+            { args: ['0'], expected: line('0'), name: '0 → 0' },
+            { args: ['1'], expected: line('1'), name: '1 → 1' },
+            { args: ['11111111'], expected: line('255'), name: '11111111 → 255' },
+            { args: ['10000'], expected: line('16'), name: '10000 → 16' },
+            { args: ['1010'], expected: line('10'), name: '1010 → 10' }
+          ]
+        },
+        {
+          id: 'CI.3', title: 'Operaciones a nivel de bits',
+          theory: `
+            <h3>Operadores bit a bit de Java</h3>
+            <p>Java hereda de C los operadores a nivel de bits. Son fundamentales en sistemas embebidos, criptografía y optimización:</p>
+            <ul>
+              <li><code>a &amp; b</code> — AND bit a bit (1 solo si ambos son 1).</li>
+              <li><code>a | b</code> — OR bit a bit (1 si al menos uno es 1).</li>
+              <li><code>a ^ b</code> — XOR bit a bit (1 si son distintos).</li>
+              <li><code>~a</code> — NOT (invierte todos los bits).</li>
+              <li><code>a &lt;&lt; n</code> — desplazamiento a izquierda (multiplica por 2ⁿ).</li>
+              <li><code>a &gt;&gt; n</code> — desplazamiento a derecha con signo (divide por 2ⁿ).</li>
+            </ul>
+            <h3>Máscara con AND</h3>
+            <p>Para "leer" un bit específico: <code>n &amp; (1 &lt;&lt; k)</code> es 0 si el bit k está a 0, y no-cero si está a 1.</p>
+            <pre><code>int n = 13;        // 1101
+int bit3 = (n &amp; (1 &lt;&lt; 3)) != 0 ? 1 : 0;   // bit 3 = 1 (8)
+int bit2 = (n &amp; (1 &lt;&lt; 2)) != 0 ? 1 : 0;   // bit 2 = 1 (4)
+int bit1 = (n &amp; (1 &lt;&lt; 1)) != 0 ? 1 : 0;   // bit 1 = 0 (2)
+int bit0 = (n &amp; 1) != 0 ? 1 : 0;           // bit 0 = 1 (1)</code></pre>
+            <h3>Activar bit</h3>
+            <p>Para "escribir" un bit a 1: <code>n | (1 &lt;&lt; k)</code>. Para escribirlo a 0: <code>n &amp; ~(1 &lt;&lt; k)</code>.</p>
+            <div class="callout">
+              <strong>Disciplina:</strong> en sistemas embebidos y cibernética, los registros de hardware se manipulan con bits individuales. Aprender el patrón "máscara, desplaza, compara" es esencial.
+            </div>
+          `,
+          mission: `
+            <span class="mission-label">Misión</span>
+            <p>Lee <code>int n = Integer.parseInt(args[0])</code>. Imprime el número de bits a 1 en su representación binaria (popcount / Hamming weight).</p>
+            <p>Ejemplos:</p>
+            <ul>
+              <li>13 (1101) → 3</li>
+              <li>0 (0) → 0</li>
+              <li>255 (11111111) → 8</li>
+              <li>7 (111) → 3</li>
+              <li>16 (10000) → 1</li>
+            </ul>
+            <p>Truco: <code>n = n &amp; (n - 1)</code> borra el bit a 1 menos significativo. Repite hasta que n sea 0. Cuenta las repeticiones.</p>
+          `,
+          starter: `public class Main {
+    public static void main(String[] args) {
+        int n = Integer.parseInt(args[0]);
+        // int count = 0;
+        // while (n != 0) {
+        //     n = n & (n - 1);
+        //     count++;
+        // }
+        // System.out.println(count);
+    }
+}`,
+          hints: [
+            'n & (n - 1) borra el bit a 1 menos significativo.',
+            'Repite el bucle hasta n == 0, contando las veces.',
+            'Este algoritmo (Kernighan) es O(número de bits a 1), más rápido que recorrer los 32 bits.'
+          ],
+          tests: [
+            { args: ['13'], expected: line('3'), name: '13 (1101) → 3' },
+            { args: ['0'], expected: line('0'), name: '0 → 0' },
+            { args: ['255'], expected: line('8'), name: '255 (11111111) → 8' },
+            { args: ['7'], expected: line('3'), name: '7 (111) → 3' },
+            { args: ['16'], expected: line('1'), name: '16 (10000) → 1' },
+            { args: ['1023'], expected: line('10'), name: '1023 (10 unos)' }
+          ]
+        },
+        {
+          id: 'CI.4', title: 'XOR — cifrado simple',
+          theory: `
+            <h3>El operador XOR (^)</h3>
+            <p>XOR (exclusive OR) tiene propiedades útiles en criptografía:</p>
+            <ul>
+              <li><code>a ^ a = 0</code> — XOR consigo mismo da 0.</li>
+              <li><code>a ^ 0 = a</code> — XOR con 0 no cambia.</li>
+              <li><code>a ^ b ^ b = a</code> — aplicar XOR dos veces con la misma clave recupera el original.</li>
+            </ul>
+            <h3>Cifrado de Vernam (one-time pad)</h3>
+            <p>Aplicar XOR con una clave a cada byte del mensaje produce el cifrado. Aplicar XOR con la misma clave al cifrado recupera el mensaje. Esto es la base del "one-time pad" (perfectamente seguro si la clave es aleatoria y se usa una sola vez).</p>
+            <pre><code>String msg = "Hola";
+String clave = "xyz#";
+StringBuilder sb = new StringBuilder();
+for (int i = 0; i &lt; msg.length(); i++) {
+    char c = (char)(msg.charAt(i) ^ clave.charAt(i % clave.length()));
+    sb.append(c);
+}
+String cifrado = sb.toString();</code></pre>
+            <h3>Descifrado</h3>
+            <p>Para descifrar, aplicas XOR otra vez con la misma clave. Como <code>a ^ b ^ b = a</code>, recuperas el original.</p>
+            <h3>Por qué i % clave.length()</h3>
+            <p>Si la clave es más corta que el mensaje, la repetimos cíclicamente. <code>i % clave.length()</code> da la posición correcta en la clave para el carácter <code>i</code>.</p>
+            <div class="callout warn">
+              <strong>Cuidado:</strong> este cifrado es simple y didáctico, NO seguro en producción. Una clave corta o predecible se rompe trivialmente. Para cifrado real, usa AES con claves aleatorias.
+            </div>
+          `,
+          mission: `
+            <span class="mission-label">Misión</span>
+            <p>Lee <code>String msg = args[0]</code> y <code>String clave = args[1]</code>. Cifra cada carácter del mensaje con XOR usando la clave (repetida cíclicamente). Imprime los códigos ASCII de los caracteres cifrados, separados por comas.</p>
+            <p>Ejemplo: msg="Hola", clave="xyz" → calcula H^x, o^y, l^z, a^x. Imprime los valores ASCII separados por comas.</p>
+            <p>Calcula: H(72)^x(120)=48, o(111)^y(121)=22, l(108)^z(122)=22, a(97)^x(120)=25. Salida: "48,22,22,25"</p>
+          `,
+          starter: `public class Main {
+    public static void main(String[] args) {
+        String msg = args[0];
+        String clave = args[1];
+        // StringBuilder sb = new StringBuilder();
+        // for (int i = 0; i < msg.length(); i++) {
+        //     int c = msg.charAt(i) ^ clave.charAt(i % clave.length());
+        //     if (i > 0) sb.append(",");
+        //     sb.append(c);
+        // }
+        // System.out.println(sb.toString());
+    }
+}`,
+          hints: [
+            'msg.charAt(i) ^ clave.charAt(i % clave.length()) aplica XOR.',
+            'El resultado es un int (porque ^ promueve chars a int).',
+            'Imprime los valores separados por comas (sin coma al inicio).'
+          ],
+          tests: [
+            { args: ['Hola', 'xyz'], expected: line('48,22,22,25'), name: 'Hola ^ xyz' },
+            { args: ['A', 'B'], expected: line('3'), name: 'A ^ B' },
+            { args: ['ab', 'ab'], expected: line('0,0'), name: 'msg=clave → 0,0' },
+            { args: ['Test', 'K'], expected: line('31,46,56,63'), name: 'Test ^ K (repetida)' }
+          ]
+        },
+        {
+          id: 'CI.5', title: 'Paridad (control de errores)',
+          theory: `
+            <h3>Bit de paridad</h3>
+            <p>En comunicaciones digitales, se añade un "bit de paridad" para detectar errores de transmisión. Existen dos tipos:</p>
+            <ul>
+              <li><strong>Paridad par</strong>: el bit es 0 si el número de unos es par, 1 si es impar. El total (datos + paridad) siempre es par.</li>
+              <li><strong>Paridad impar</strong>: lo contrario.</li>
+            </ul>
+            <h3>Cálculo</h3>
+            <p>Para paridad par, el bit de paridad es <code>(popcount(datos) % 2)</code>. Si los datos tienen un número impar de unos, paridad=1 (para que el total sea par). Si tienen un número par de unos, paridad=0.</p>
+            <pre><code>int dato = 0b01101011;   // 5 unos
+int paridad = Integer.bitCount(dato) % 2;   // 1
+int total = (dato &lt;&lt; 1) | paridad;   // 8 bits: 7 datos + 1 paridad</code></pre>
+            <h3>Detección de errores</h3>
+            <p>El receptor cuenta los unos del byte recibido (datos + paridad). Si es par, asume que no hubo error (o hubo un número par de errores, que es muy improbable). Si es impar, asume que hubo un error.</p>
+            <p>Limitación: la paridad simple solo detecta errores impares (1, 3, 5...). No detecta 2 errores. Por eso en sistemas serios se usan códigos más complejos (CRC, Hamming).</p>
+            <div class="callout">
+              <strong>Aplicación:</strong> paridad simple se usa en UART, I²C y otros buses serie. En sistemas de control automático, los sensores usan checksums (suma, CRC) para validar datos recibidos.
+            </div>
+          `,
+          mission: `
+            <span class="mission-label">Misión</span>
+            <p>Lee <code>int n = Integer.parseInt(args[0])</code> (un byte de datos, 0..255). Calcula el bit de paridad <strong>par</strong>: 1 si el número de unos en <code>n</code> es impar, 0 si es par. Imprime el bit (0 o 1).</p>
+            <p>Ejemplos:</p>
+            <ul>
+              <li>13 (1101, 3 unos, impar) → 1</li>
+              <li>0 (0 unos) → 0</li>
+              <li>255 (8 unos, par) → 0</li>
+              <li>7 (111, 3 unos, impar) → 1</li>
+              <li>3 (11, 2 unos, par) → 0</li>
+            </ul>
+          `,
+          starter: `public class Main {
+    public static void main(String[] args) {
+        int n = Integer.parseInt(args[0]);
+        // int count = 0;
+        // int tmp = n;
+        // while (tmp != 0) { tmp = tmp & (tmp - 1); count++; }
+        // System.out.println(count % 2);
+    }
+}`,
+          hints: [
+            'Cuenta los bits a 1 con el truco n & (n-1).',
+            'Si el número de unos es impar, paridad par = 1.',
+            'Si es par, paridad par = 0. Por eso count % 2.'
+          ],
+          tests: [
+            { args: ['13'], expected: line('1'), name: '13 (3 unos, impar)' },
+            { args: ['0'], expected: line('0'), name: '0 (0 unos, par)' },
+            { args: ['255'], expected: line('0'), name: '255 (8 unos, par)' },
+            { args: ['7'], expected: line('1'), name: '7 (3 unos, impar)' },
+            { args: ['3'], expected: line('0'), name: '3 (2 unos, par)' },
+            { args: ['1'], expected: line('1'), name: '1 (1 uno, impar)' }
+          ]
+        },
+        {
+          id: 'CI.6', title: 'Complemento a 2 (negativos)',
+          theory: `
+            <h3>Representación de negativos</h3>
+            <p>Los computadores representan enteros con signo usando <em>complemento a 2</em>. Para un entero de N bits, el rango es [-2^(N-1), 2^(N-1) - 1]. Para un int de 32 bits: [-2.147.483.648, 2.147.483.647].</p>
+            <h3>Complemento a 2</h3>
+            <p>Para negar un número en complemento a 2: <code>~n + 1</code> (invertir todos los bits, sumar 1).</p>
+            <pre><code>int n = 5;
+int neg = ~n + 1;   // -5
+System.out.println(neg);   // -5</code></pre>
+            <p>En Java, esto es simplemente <code>-n</code>, pero entender el mecanismo es importante para no sorprenderte con overflow.</p>
+            <h3>Overflow y wrap-around</h3>
+            <p>Si <code>INT_MAX + 1</code> se calcula en int, el resultado es <code>INT_MIN</code> (no un error). El bit de signo se "reinicia".</p>
+            <pre><code>int max = Integer.MAX_VALUE;   // 2147483647
+int x = max + 1;                 // -2147483648 (en Java real)
+// En nuestro intérprete, esto lanza un error de overflow</code></pre>
+            <h3>Por qué importa</h3>
+            <p>En sistemas embebidos y cibernética, el overflow es causa común de bugs críticos (controladores que colapsan tras X horas porque un contador se desborda). Aprender a detectar y prevenir overflow es esencial.</p>
+            <div class="callout">
+              <strong>Disciplina:</strong> si tu contador puede crecer sin control, usa <code>long</code> o <code>BigInteger</code>. Si solo necesitas positivos, <code>long</code> con validación, o tipos unsigned si el lenguaje los soporta.
+            </div>
+          `,
+          mission: `
+            <span class="mission-label">Misión</span>
+            <p>Lee <code>int n = Integer.parseInt(args[0])</code>. Calcula su negación usando <strong>complemento a 2</strong> explícitamente: <code>~n + 1</code>. Imprime el resultado.</p>
+            <p>Ejemplos:</p>
+            <ul>
+              <li>5 → -5</li>
+              <li>0 → 0</li>
+              <li>-5 → 5</li>
+              <li>100 → -100</li>
+            </ul>
+            <p>Verifica que <code>~n + 1</code> produce lo mismo que <code>-n</code>.</p>
+          `,
+          starter: `public class Main {
+    public static void main(String[] args) {
+        int n = Integer.parseInt(args[0]);
+        // int neg = ~n + 1;
+        // System.out.println(neg);
+    }
+}`,
+          hints: [
+            '~n invierte todos los bits.',
+            'Suma 1: ~n + 1.',
+            'El resultado es la negación en complemento a 2 (igual que -n).'
+          ],
+          tests: [
+            { args: ['5'], expected: line('-5'), name: '5 → -5' },
+            { args: ['0'], expected: line('0'), name: '0 → 0' },
+            { args: ['-5'], expected: line('5'), name: '-5 → 5' },
+            { args: ['100'], expected: line('-100'), name: '100 → -100' },
+            { args: ['42'], expected: line('-42'), name: '42 → -42' }
+          ]
+        },
+        {
+          id: 'CI.7', title: 'Hexadecimal (decimal ⇄ hex)',
+          theory: `
+            <h3>Sistema hexadecimal</h3>
+            <p>Hexadecimal es base 16. Cada dígito va del 0-9 y de la A-F (10-15). Es muy usado en programación porque cada dígito hex representa exactamente 4 bits — un byte se escribe con 2 dígitos hex.</p>
+            <h3>Conversión decimal → hex</h3>
+            <p>Mismo algoritmo que decimal → binario, pero dividiendo entre 16 y mapeando restos 10-15 a A-F:</p>
+            <pre><code>int n = 255;
+String digitos = "0123456789ABCDEF";
+StringBuilder sb = new StringBuilder();
+if (n == 0) sb.append("0");
+while (n > 0) {
+    sb.append(digitos.charAt(n % 16));
+    n = n / 16;
+}
+System.out.println(sb.reverse().toString());   // "FF"</code></pre>
+            <h3>Conversión hex → decimal</h3>
+            <p>Mismo algoritmo de Horner, pero con base 16:</p>
+            <pre><code>String hex = "FF";
+int n = 0;
+for (int i = 0; i &lt; hex.length(); i++) {
+    char c = hex.charAt(i);
+    int d;
+    if (c >= '0' && c <= '9') d = c - '0';
+    else if (c >= 'A' && c <= 'F') d = c - 'A' + 10;
+    else d = 0; // o error
+    n = n * 16 + d;
+}
+System.out.println(n);   // 255</code></pre>
+            <h3>Por qué hex es compacto</h3>
+            <p>El byte 11111111 (8 bits) es "FF" en hex (2 caracteres). Mucho más legible para direcciones de memoria, códigos de color (#FF8800), hashes (MD5, SHA).</p>
+            <div class="callout">
+              <strong>Disciplina:</strong> en sistemas, las direcciones de memoria y los códigos de error suelen mostrarse en hex. Aprende a leerlo rápido: A0=160, FF=255, 10=16, 100=256.
+            </div>
+          `,
+          mission: `
+            <span class="mission-label">Misión</span>
+            <p>Lee <code>int n = Integer.parseInt(args[0])</code> e imprime su representación hexadecimal (sin prefijo "0x", en mayúsculas).</p>
+            <p>Ejemplos:</p>
+            <ul>
+              <li>255 → FF</li>
+              <li>0 → 0</li>
+              <li>16 → 10</li>
+              <li>256 → 100</li>
+              <li>4095 → FFF</li>
+            </ul>
+          `,
+          starter: `public class Main {
+    public static void main(String[] args) {
+        int n = Integer.parseInt(args[0]);
+        // String digitos = "0123456789ABCDEF";
+        // StringBuilder sb = new StringBuilder();
+        // if (n == 0) sb.append("0");
+        // while (n > 0) {
+        //     sb.append(digitos.charAt(n % 16));
+        //     n = n / 16;
+        // }
+        // System.out.println(sb.reverse().toString());
+    }
+}`,
+          hints: [
+            'String digitos = "0123456789ABCDEF"; — mapeo de restos 0-15 a dígitos hex.',
+            'digitos.charAt(n % 16) te da el dígito correcto.',
+            'Al final, reverse() para que el más significativo quede primero.'
+          ],
+          tests: [
+            { args: ['255'], expected: line('FF'), name: '255 → FF' },
+            { args: ['0'], expected: line('0'), name: '0 → 0' },
+            { args: ['16'], expected: line('10'), name: '16 → 10' },
+            { args: ['256'], expected: line('100'), name: '256 → 100' },
+            { args: ['4095'], expected: line('FFF'), name: '4095 → FFF' },
+            { args: ['15'], expected: line('F'), name: '15 → F' }
+          ]
+        },
+        {
+          id: 'CI.8', title: 'Cambio de bit (toggle)',
+          theory: `
+            <h3>Conmutar un bit</h3>
+            <p>Para "cambiar" (toggle) un bit específico — de 0 a 1 o de 1 a 0 — usamos XOR con la máscara del bit:</p>
+            <pre><code>int n = 0b1010;   // 10 decimal
+int k = 1;        // posición del bit a cambiar (0-indexado)
+int resultado = n ^ (1 &lt;&lt; k);   // 0b1000 = 8</code></pre>
+            <h3>Por qué funciona</h3>
+            <p>XOR con un bit a 0 deja el bit original intacto (a ^ 0 = a). XOR con un bit a 1 lo invierte (a ^ 1 = ~a). Por tanto <code>n ^ (1 &lt;&lt; k)</code> invierte el bit k y deja los demás igual.</p>
+            <h3>Aplicaciones</h3>
+            <p>En sistemas embebidos, los registros de hardware a menudo tienen flags (banderas de un bit) que se conmutan para activar/desactivar funciones. En gráficos, se usa para "flip" de píxeles. En cibernética, para alternar estados en máquinas de estado finitas.</p>
+            <pre><code>// Ejemplo: cambiamos el bit 2 de 1100 (12)
+// 1100 ^ 0100 = 1000 (8)
+// 1000 ^ 0100 = 1100 (12) — toggle de vuelta</code></pre>
+            <h3>Leer un bit</h3>
+            <p>Para leer el bit k sin modificarlo: <code>(n &gt;&gt; k) &amp; 1</code>. Esto desplaza el bit k a la posición 0, luego enmascara para quedarse solo con ese bit.</p>
+            <div class="callout">
+              <strong>Disciplina:</strong> XOR es el "cambiar" natural para bits. Recordar: <code>n ^ mask</code> con mask=(1&lt;&lt;k) invierte el bit k. Es idempotente al hacerlo dos veces (vuelves al original).
+            </div>
+          `,
+          mission: `
+            <span class="mission-label">Misión</span>
+            <p>Lee <code>int n = Integer.parseInt(args[0])</code> y <code>int k = Integer.parseInt(args[1])</code>. Cambia (toggle) el bit k de n usando XOR e imprime el resultado.</p>
+            <p>Ejemplos:</p>
+            <ul>
+              <li>n=12 (1100), k=2 → 8 (1000) — bit 2 era 1, ahora 0</li>
+              <li>n=8 (1000), k=2 → 12 (1100) — bit 2 era 0, ahora 1</li>
+              <li>n=5 (101), k=0 → 4 (100) — bit 0 era 1, ahora 0</li>
+              <li>n=5 (101), k=1 → 7 (111) — bit 1 era 0, ahora 1</li>
+            </ul>
+          `,
+          starter: `public class Main {
+    public static void main(String[] args) {
+        int n = Integer.parseInt(args[0]);
+        int k = Integer.parseInt(args[1]);
+        // int result = n ^ (1 << k);
+        // System.out.println(result);
+    }
+}`,
+          hints: [
+            '1 << k produce una máscara con solo el bit k a 1.',
+            'n ^ (1 << k) invierte el bit k y deja los demás.',
+            'XOR dos veces con la misma máscara vuelve al original.'
+          ],
+          tests: [
+            { args: ['12', '2'], expected: line('8'), name: '12 ^ bit 2' },
+            { args: ['8', '2'], expected: line('12'), name: '8 ^ bit 2' },
+            { args: ['5', '0'], expected: line('4'), name: '5 ^ bit 0' },
+            { args: ['5', '1'], expected: line('7'), name: '5 ^ bit 1' },
+            { args: ['0', '5'], expected: line('32'), name: '0 ^ bit 5' },
+            { args: ['255', '3'], expected: line('247'), name: '255 ^ bit 3' }
+          ]
+        }
+      ]
+    },
+
+    // ============================================================
     // MÓDULO 06 — Algoritmos
     // ============================================================
     {
@@ -6959,6 +8460,202 @@ class Gato extends Animal {
           ],
           tests: [
             { args: [], expected: lines('Guau', 'Miau', 'Guau'), name: 'polimorfismo' }
+          ]
+        },
+        {
+          id: '08.7', title: 'instanceof y casting',
+          theory: `
+            <h3>instanceof</h3>
+            <p>El operador <code>instanceof</code> comprueba si un objeto es instancia de una clase (o de una subclase suya). Devuelve <code>true</code> si el objeto es del tipo indicado o de un subtipo:</p>
+            <pre><code>Animal a = new Perro();
+if (a instanceof Perro) System.out.println("Es perro");   // sí
+if (a instanceof Animal) System.out.println("Es animal");   // sí</code></pre>
+            <h3>Casting de objetos</h3>
+            <p>Si sabes que un <code>Animal</code> es realmente un <code>Perro</code>, puedes hacer un cast con <code>(Perro) animal</code>. Si te equivocas (no es Perro), Java real lanzaría <code>ClassCastException</code>; aquí, no validamos pero el resultado es impredecible.</p>
+            <pre><code>Animal a = new Perro();
+Perro p = (Perro) a;   // OK</code></pre>
+            <h3>Patrón: casteo seguro</h3>
+            <p>Para evitar excepciones, comprueba primero con <code>instanceof</code>:</p>
+            <pre><code>if (a instanceof Perro) {
+    Perro p = (Perro) a;
+    p.ladrar();
+}</code></pre>
+            <h3>Por qué instanceof no es siempre ideal</h3>
+            <p>Si escribes muchos <code>if (x instanceof A) ... else if (x instanceof B) ...</code>, suele ser señal de que deberías usar polimorfismo: poner el método común en la clase base. Pero en algunos casos (parsing, juegos con tipos heterogéneos) instanceof es lo correcto.</p>
+            <div class="callout">
+              <strong>Disciplina:</strong> usa instanceof cuando necesitas distinguir tipos en un punto del código. Si lo usas en 5 lugares distintos para el mismo tipo, refactoriza con polimorfismo.
+            </div>
+          `,
+          mission: `
+            <span class="mission-label">Misión</span>
+            <p>Define <code>class Animal</code> con método <code>String sonido()</code> que devuelve "?" (default). Define <code>class Perro extends Animal</code> con <code>String sonido() { return "Guau"; }</code> y método extra <code>String raza()</code> que devuelve "Labrador". En <code>main</code>, crea <code>Animal a = new Perro()</code> y usa <code>instanceof</code> para comprobar si es Perro. Si lo es, haz cast a Perro e imprime <code>((Perro) a).raza()</code> en una línea, y <code>a.sonido()</code> en otra.</p>
+            <pre><code>Labrador
+Guau</code></pre>
+          `,
+          starter: `public class Main {
+    public static void main(String[] args) {
+        // Animal a = new Perro();
+        // if (a instanceof Perro) {
+        //     Perro p = (Perro) a;
+        //     System.out.println(p.raza());
+        // }
+        // System.out.println(a.sonido());
+    }
+}
+
+class Animal {
+    String sonido() { return "?"; }
+}
+
+class Perro extends Animal {
+    String sonido() { return "Guau"; }
+    String raza() { return "Labrador"; }
+}`,
+          hints: [
+            'instanceof Perro comprueba si a es de tipo Perro.',
+            '(Perro) a es el cast — a partir de ahí puedes llamar raza().',
+            'El método sonido() se hereda y se sobrescribe — lo llamamos en cualquier caso.'
+          ],
+          tests: [
+            { args: [], expected: lines('Labrador', 'Guau'), name: 'instanceof + cast' }
+          ]
+        },
+        {
+          id: '08.8', title: 'Clases abstractas',
+          theory: `
+            <h3>abstract: clases que no se instancian</h3>
+            <p>Una clase <code>abstract</code> no puede ser instanciada directamente. Sirve como base para subclases que sí se instancian. Esto es útil cuando la clase base representa un concepto general que no tiene implementación completa.</p>
+            <pre><code>abstract class Figura {
+    abstract double area();        // sin cuerpo — las subclases deben implementarlo
+    String describe() {
+        return "Figura de área " + area();
+    }
+}</code></pre>
+            <h3>Métodos abstractos</h3>
+            <p>Un método <code>abstract</code> no tiene cuerpo — termina con <code>;</code> en vez de <code>{ ... }</code>. Las subclases concretas deben implementarlo. Si una subclase no lo implementa, también debe ser abstract.</p>
+            <h3>Subclases concretas</h3>
+            <pre><code>class Circulo extends Figura {
+    double r;
+    Circulo(double r) { this.r = r; }
+    double area() { return Math.PI * r * r; }
+}
+
+class Cuadrado extends Figura {
+    double lado;
+    Cuadrado(double l) { this.lado = l; }
+    double area() { return lado * lado; }
+}</code></pre>
+            <h3>Uso polimórfico</h3>
+            <pre><code>Figura f = new Circulo(5);
+System.out.println(f.area());         // 78.53...
+System.out.println(f.describe());     // "Figura de área 78.53..."</code></pre>
+            <p>Como <code>f</code> es de tipo <code>Figura</code> (abstracta), no puedes hacer <code>new Figura()</code>. Pero puedes referenciar subclases concretas.</p>
+            <div class="callout">
+              <strong>Disciplina:</strong> las clases abstractas son como interfaces con un poco de implementación. Úsalas cuando varias subclases comparten estado o lógica común (campos, métodos concretos) además de métodos abstractos.
+            </div>
+          `,
+          mission: `
+            <span class="mission-label">Misión</span>
+            <p>Define <code>abstract class Figura</code> con método abstracto <code>double area()</code> y método concreto <code>String describe()</code> que devuelve <code>"Figura de área " + area()</code>. Define <code>class Circulo extends Figura</code> con constructor <code>Circulo(double r)</code> y <code>area() = π·r²</code>. Define <code>class Cuadrado extends Figura</code> con constructor <code>Cuadrado(double l)</code> y <code>area() = l²</code>. En <code>main</code>, crea <code>Figura[] figuras = { new Circulo(5), new Cuadrado(4) }</code> e imprime <code>figuras[i].describe()</code> para cada uno.</p>
+            <pre><code>Figura de área 78.53981633974483
+Figura de área 16.0</code></pre>
+          `,
+          starter: `public class Main {
+    public static void main(String[] args) {
+        // Figura[] figuras = { new Circulo(5), new Cuadrado(4) };
+        // for (int i = 0; i < figuras.length; i++) {
+        //     System.out.println(figuras[i].describe());
+        // }
+    }
+}
+
+abstract class Figura {
+    // abstract double area();
+    // String describe() { return "Figura de área " + area(); }
+}
+
+class Circulo extends Figura {
+    // double r;
+    // Circulo(double r) { this.r = r; }
+    // double area() { return Math.PI * r * r; }
+}
+
+class Cuadrado extends Figura {
+    // double lado;
+    // Cuadrado(double l) { this.lado = l; }
+    // double area() { return lado * lado; }
+}`,
+          hints: [
+            'El método abstracto area() se declara sin cuerpo: abstract double area();',
+            'describe() en la clase base puede llamar a area() — Java usa el dispatch dinámico.',
+            'Figura[] puede contener Circulo y Cuadrado porque ambos extienden Figura.'
+          ],
+          tests: [
+            { args: [], expected: lines('Figura de área 78.53981633974483', 'Figura de área 16.0'), name: 'abstract + polimorfismo' }
+          ]
+        },
+        {
+          id: '08.9', title: 'Métodos y campos estáticos',
+          theory: `
+            <h3>static: pertenece a la clase, no al objeto</h3>
+            <p>Un miembro <code>static</code> pertenece a la clase, no a cada instancia. Todos los objetos comparten la misma copia. Los métodos estáticos se llaman sin crear un objeto:</p>
+            <pre><code>class ContadorGlobal {
+    static int total = 0;
+    static void incrementar() {
+        total++;
+    }
+    static int getTotal() {
+        return total;
+    }
+}
+
+// Uso: sin instanciar
+ContadorGlobal.incrementar();
+ContadorGlobal.incrementar();
+System.out.println(ContadorGlobal.getTotal());   // 2</code></pre>
+            <h3>Variables compartidas</h3>
+            <p>Un campo static es una variable "global" para la clase. Si lo modificas en una instancia, todas las demás lo ven. Útil para contadores, configuraciones, caches.</p>
+            <h3>Constantes</h3>
+            <p>Las constantes se declaran <code>static final</code>:</p>
+            <pre><code>class Config {
+    public static final int MAX_USUARIOS = 100;
+    public static final String VERSION = "1.0";
+}</code></pre>
+            <h3>Cuándo usar static</h3>
+            <p>Funciones puras (sin estado) → static (como <code>Math.abs</code>). Utilidades → static. Datos compartidos → static. Estado propio del objeto → NO static.</p>
+            <p>El abuso de static dificulta el testing (estado global oculto) y la concurrencia. Úsalo con moderación.</p>
+            <div class="callout">
+              <strong>Disciplina:</strong> <code>static</code> es perfecto para utilidades puras y constantes. Evita usarlo para estado mutable compartido — el patrón Singleton (módulo 10) es mejor para eso.
+            </div>
+          `,
+          mission: `
+            <span class="mission-label">Misión</span>
+            <p>Implementa <code>class ContadorGlobal</code> con campo <code>static int total = 0</code>, métodos estáticos <code>static void incrementar()</code> (suma 1) y <code>static int getTotal()</code>. En <code>main</code>, llama <code>ContadorGlobal.incrementar()</code> 5 veces y luego imprime <code>ContadorGlobal.getTotal()</code>.</p>
+            <pre><code>5</code></pre>
+          `,
+          starter: `public class Main {
+    public static void main(String[] args) {
+        // ContadorGlobal.incrementar();
+        // ContadorGlobal.incrementar();
+        // ContadorGlobal.incrementar();
+        // ContadorGlobal.incrementar();
+        // ContadorGlobal.incrementar();
+        // System.out.println(ContadorGlobal.getTotal());
+    }
+}
+
+class ContadorGlobal {
+    // static int total = 0;
+    // static void incrementar() { total++; }
+    // static int getTotal() { return total; }
+}`,
+          hints: [
+            'Los métodos estáticos se llaman como ContadorGlobal.incrementar() (sin new).',
+            'El campo static es compartido — todas las llamadas incrementan el mismo total.',
+            'getTotal() devuelve el valor actual.'
+          ],
+          tests: [
+            { args: [], expected: line('5'), name: '5 incrementos' }
           ]
         }
       ]
@@ -9072,6 +10769,60 @@ class Player {
       $('#sidebar-open').classList.add('hidden');
     });
 
+    // Mobile tabs: switch between lesson and editor
+    $$('.mtab').forEach(b => b.addEventListener('click', () => {
+      const which = b.dataset.mtab;
+      const grid = $('#content-grid');
+      grid.classList.remove('lesson-mode', 'editor-mode');
+      grid.classList.add(which + '-mode');
+      $$('.mtab').forEach(t => t.classList.toggle('active', t === b));
+      // Refresh editor highlight when switching to editor (in case it wasn't visible)
+      if (which === 'editor') {
+        updateHighlight();
+        updateLineHighlight();
+        updateStatusBar();
+        $('#editor').focus();
+      }
+    }));
+
+    // Popout buttons: open editor or lesson in a new window
+    $('#btn-popout-editor').addEventListener('click', () => popout('editor'));
+    $('#btn-popout-lesson').addEventListener('click', () => popout('lesson'));
+
+    // Listen for popout sync messages
+    window.addEventListener('message', (ev) => {
+      if (!ev.data || !ev.data.aulaType) return;
+      if (ev.data.aulaType === 'editor-sync') {
+        if (ev.data.code !== undefined && currentLesson) {
+          $('#editor').value = ev.data.code;
+          updateLineNumbers();
+          updateHighlight();
+          updateLineHighlight();
+          updateStatusBar();
+          state.saveCode(currentLesson.id, ev.data.code);
+        }
+      } else if (ev.data.aulaType === 'editor-run') {
+        runCode();
+      } else if (ev.data.aulaType === 'editor-check') {
+        checkCode();
+      } else if (ev.data.aulaType === 'lesson-req') {
+        // Send current lesson to a popped-out lesson window
+        if (currentLesson) {
+          ev.source.postMessage({
+            aulaType: 'lesson-data',
+            theory: currentLesson.theory,
+            mission: currentLesson.mission,
+            title: currentLesson.title,
+            num: currentLesson.id,
+            hints: currentLesson.hints || []
+          }, '*');
+        }
+      }
+    });
+
+    // If this window was opened as a popout, set up the popout UI
+    setupPopoutHost();
+
     // export modal
     $('#btn-export').addEventListener('click', () => exportUI.openExportModal());
     $('#btn-close-export').addEventListener('click', () => $('#export-modal').classList.add('hidden'));
@@ -9100,7 +10851,309 @@ class Player {
   }
 
   // expose
-  global.ui = { init, toast, renderRoadmap, renderPlayer, loadLesson, runCode, checkCode };
+  // ---- Popout windows ----
+  let popoutWins = { editor: null, lesson: null };
+  const POPOUT_HTML = `<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>aula·java — ventana</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #0d1117;
+  --bg-elev: #161b22;
+  --bg-elev-2: #1c2230;
+  --bg-input: #010409;
+  --border: #30363d;
+  --border-soft: #21262d;
+  --text: #c9d1d9;
+  --text-dim: #8b949e;
+  --text-bright: #f0f6fc;
+  --accent: #10b981;
+  --accent-dim: #047857;
+  --accent-glow: rgba(16, 185, 129, 0.25);
+  --amber: #f59e0b;
+  --rose: #f43f5e;
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, "JetBrains Mono", Menlo, Consolas, monospace;
+}
+html, body {
+  height: 100%; background: var(--bg); color: var(--text);
+  font-family: var(--font-sans); font-size: 14px; line-height: 1.5; overflow: hidden;
+}
+#header {
+  height: 44px; background: var(--bg-elev); border-bottom: 1px solid var(--border-soft);
+  display: flex; align-items: center; gap: 12px; padding: 0 16px;
+}
+#header h1 { font-size: 14px; color: var(--text-bright); font-weight: 600; }
+#header .spacer { flex: 1; }
+#header button {
+  background: var(--accent); color: #001b13; border: none;
+  padding: 6px 14px; border-radius: 4px; font-weight: 600;
+  font-family: inherit; font-size: 13px; cursor: pointer;
+}
+#header button:hover { background: #34d399; }
+#header button.btn-secondary {
+  background: var(--bg-elev-2); color: var(--text); border: 1px solid var(--border);
+}
+#header button.btn-secondary:hover { background: var(--bg); }
+#editor-wrap {
+  position: relative; flex: 1; display: flex; overflow: hidden;
+  height: calc(100vh - 44px - 200px);
+  background: var(--bg-input);
+}
+#line-numbers {
+  width: 56px; padding: 10px 12px 10px 0; text-align: right;
+  font-family: var(--font-mono); font-size: 13px; line-height: 1.5;
+  color: var(--text-dim); background: var(--bg-input); user-select: none;
+  overflow: hidden; flex-shrink: 0; white-space: pre;
+  border-right: 1px solid var(--border-soft);
+}
+#highlight-overlay {
+  position: absolute; top: 0; left: 56px; right: 0; bottom: 0;
+  padding: 10px 12px; margin: 0;
+  font-family: var(--font-mono); font-size: 13px; line-height: 1.5;
+  white-space: pre; pointer-events: none; color: var(--text);
+  overflow: hidden; tab-size: 4; z-index: 1; background: transparent;
+}
+#editor {
+  position: relative; z-index: 2; flex: 1;
+  background: transparent; color: transparent; caret-color: var(--text-bright);
+  border: none; outline: none; resize: none; padding: 10px 12px;
+  font-family: var(--font-mono); font-size: 13px; line-height: 1.5;
+  tab-size: 4; white-space: pre; overflow: auto;
+}
+#editor::selection { background: rgba(56, 189, 248, 0.25); }
+#editor:focus { outline: none; }
+#console-tabs { display: flex; background: var(--bg-elev); border-bottom: 1px solid var(--border-soft); }
+#console-tabs button {
+  background: transparent; border: none; color: var(--text-dim);
+  padding: 8px 14px; font-size: 12px; cursor: pointer; font-family: inherit;
+  border-bottom: 2px solid transparent;
+}
+#console-tabs button.active { color: var(--accent); border-bottom-color: var(--accent); }
+#console-area { height: 200px; background: var(--bg-input); display: flex; flex-direction: column; }
+#console {
+  flex: 1; padding: 10px 12px;
+  font-family: var(--font-mono); font-size: 12px; line-height: 1.5; color: var(--text);
+  white-space: pre-wrap; word-break: break-word; overflow-y: auto;
+}
+#console .out-err { color: var(--rose); }
+#console .out-ok { color: var(--accent); }
+.tok-kw { color: #569cd6; font-weight: 500; }
+.tok-type, .tok-class-ref { color: #4ec9b0; }
+.tok-str { color: #ce9178; }
+.tok-num { color: #b5cea8; }
+.tok-com { color: #6a9955; font-style: italic; }
+.tok-fn { color: #dcdcaa; }
+.tok-ann { color: #dcdcaa; font-weight: 500; }
+.tok-op, .tok-punct { color: #d4d4d4; }
+.tok-bool { color: #569cd6; }
+.tok-ident { color: #9cdcfe; }
+.tok-this { color: #569cd6; font-style: italic; }
+#lesson-body { flex: 1; padding: 20px; overflow-y: auto; }
+#lesson-body h3 { font-size: 16px; color: var(--text-bright); margin: 16px 0 8px; }
+#lesson-body p { margin-bottom: 10px; line-height: 1.6; }
+#lesson-body code { font-family: var(--font-mono); background: var(--bg-elev-2); padding: 2px 6px; border-radius: 3px; font-size: 12px; color: var(--accent); border: 1px solid var(--border-soft); }
+#lesson-body pre { background: var(--bg-input); border: 1px solid var(--border-soft); border-radius: 4px; padding: 12px 14px; margin: 10px 0; overflow-x: auto; font-family: var(--font-mono); font-size: 12px; line-height: 1.5; color: var(--text); }
+#lesson-body ul, #lesson-body ol { margin: 8px 0 12px 20px; }
+#lesson-body li { margin-bottom: 4px; }
+#lesson-body .callout { border-left: 3px solid var(--accent); background: var(--accent-glow); padding: 10px 12px; margin: 12px 0; border-radius: 0 4px 4px 0; }
+#lesson-body .mission { background: linear-gradient(135deg, rgba(16,185,129,0.08), rgba(245,158,11,0.05)); border: 1px solid var(--accent-dim); border-radius: 8px; padding: 12px 14px; margin: 12px 0; }
+#lesson-body .mission-label { font-size: 11px; font-weight: 700; color: var(--accent); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 4px; display: block; }
+#lesson-num { font-family: var(--font-mono); color: var(--accent); font-size: 12px; font-weight: 700; letter-spacing: 0.05em; }
+#lesson-title { font-size: 22px; color: var(--text-bright); margin-top: 4px; }
+#lesson-header { padding: 20px 24px 12px; border-bottom: 1px solid var(--border-soft); margin-bottom: 12px; }
+#lesson-content { overflow-y: auto; padding: 0 24px 24px; height: calc(100vh - 44px - 100px); }
+</style>
+</head>
+<body>
+<div id="header">
+  <h1 id="win-title">aula·java</h1>
+  <div class="spacer"></div>
+  <button id="btn-sync" class="btn-secondary" style="display:none;">↺ Sincronizar</button>
+  <button id="btn-run" style="display:none;">▶ Ejecutar</button>
+  <button id="btn-check" style="display:none;">✓ Comprobar</button>
+</div>
+<div id="editor-wrap" style="display:none;">
+  <div id="line-numbers"></div>
+  <pre id="highlight-overlay" aria-hidden="true"></pre>
+  <textarea id="editor" spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off"></textarea>
+</div>
+<div id="console-tabs" style="display:none;">
+  <button class="active">Consola</button>
+</div>
+<div id="console-area" style="display:none;">
+  <pre id="console"></pre>
+</div>
+<div id="lesson-content" style="display:none;">
+  <div id="lesson-header">
+    <div id="lesson-num"></div>
+    <h2 id="lesson-title"></h2>
+  </div>
+  <div id="lesson-body"></div>
+</div>
+<script>
+"use strict";
+// aula·java popout script
+(function() {
+  const $ = (s) => document.querySelector(s);
+  const isEditor = location.hash === '#editor';
+  const isLesson = location.hash === '#lesson';
+  if (isEditor) {
+    $('#editor-wrap').style.display = 'flex';
+    $('#console-tabs').style.display = 'flex';
+    $('#console-area').style.display = 'flex';
+    $('#btn-run').style.display = 'inline-block';
+    $('#btn-check').style.display = 'inline-block';
+    $('#btn-sync').style.display = 'inline-block';
+    $('#win-title').textContent = 'aula·java — Editor';
+    setupEditor();
+  } else if (isLesson) {
+    $('#lesson-content').style.display = 'block';
+    $('#btn-sync').style.display = 'inline-block';
+    $('#win-title').textContent = 'aula·java — Lección';
+    // Request lesson content from opener
+    if (window.opener) {
+      window.opener.postMessage({ aulaType: 'lesson-req' }, '*');
+    }
+  }
+  function setupEditor() {
+    const editor = $('#editor');
+    const overlay = $('#highlight-overlay');
+    const ln = $('#line-numbers');
+    // Pull initial code from opener
+    if (window.opener) {
+      // The opener will send us the code via 'editor-sync' message; we just wait.
+    }
+    function escapeHtml(s) {
+      return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+    function updateHighlight() {
+      try { overlay.innerHTML = window.highlightJava(editor.value); }
+      catch (e) { overlay.innerHTML = escapeHtml(editor.value) + '\\n'; }
+    }
+    function updateLineNumbers() {
+      const n = editor.value.split('\\n').length;
+      let s = '';
+      for (let i = 1; i <= n; i++) s += i + '\\n';
+      ln.textContent = s;
+    }
+    editor.addEventListener('input', () => {
+      updateLineNumbers();
+      updateHighlight();
+      // Send to parent
+      if (window.opener) window.opener.postMessage({ aulaType: 'editor-sync', code: editor.value }, '*');
+    });
+    editor.addEventListener('scroll', () => {
+      overlay.scrollTop = editor.scrollTop;
+      overlay.scrollLeft = editor.scrollLeft;
+      ln.scrollTop = editor.scrollTop;
+    });
+    editor.addEventListener('keydown', (e) => {
+      if (e.key === 'Tab' && !e.shiftKey) {
+        e.preventDefault();
+        const s = editor.selectionStart, en = editor.selectionEnd;
+        editor.value = editor.value.substring(0, s) + '    ' + editor.value.substring(en);
+        editor.selectionStart = editor.selectionEnd = s + 4;
+        updateLineNumbers(); updateHighlight();
+        if (window.opener) window.opener.postMessage({ aulaType: 'editor-sync', code: editor.value }, '*');
+      }
+      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault();
+        if (window.opener) window.opener.postMessage({ aulaType: 'editor-run' }, '*');
+      }
+    });
+    $('#btn-run').addEventListener('click', () => {
+      if (window.opener) window.opener.postMessage({ aulaType: 'editor-run' }, '*');
+    });
+    $('#btn-check').addEventListener('click', () => {
+      if (window.opener) window.opener.postMessage({ aulaType: 'editor-check' }, '*');
+    });
+    $('#btn-sync').addEventListener('click', () => {
+      if (window.opener) window.opener.postMessage({ aulaType: 'editor-sync-req' }, '*');
+    });
+    updateLineNumbers();
+    updateHighlight();
+    editor.focus();
+  }
+  window.addEventListener('message', (ev) => {
+    if (!ev.data || !ev.data.aulaType) return;
+    if (ev.data.aulaType === 'editor-push') {
+      // Receive initial code from parent
+      const editor = $('#editor');
+      if (editor && ev.data.code !== undefined && editor.value === '') {
+        editor.value = ev.data.code;
+        // trigger highlight + line numbers
+        editor.dispatchEvent(new Event('input', { bubbles: true }));
+      }
+    } else if (ev.data.aulaType === 'editor-run-result') {
+      const c = $('#console');
+      if (c) {
+        c.innerHTML = '';
+        if (ev.data.ok) {
+          const span = document.createElement('span');
+          span.textContent = ev.data.stdout || '(sin salida)';
+          c.appendChild(span);
+        } else {
+          const span = document.createElement('span');
+          span.className = 'out-err';
+          span.textContent = '✗ ' + ev.data.error;
+          c.appendChild(span);
+        }
+      }
+    } else if (ev.data.aulaType === 'lesson-data') {
+      $('#lesson-num').textContent = ev.data.num;
+      $('#lesson-title').textContent = ev.data.title;
+      $('#lesson-body').innerHTML = ev.data.theory + '<div class="mission">' + ev.data.mission + '</div>';
+    }
+  });
+})();
+<\/script>
+</body>
+</html>`;
+
+  function popout(kind) {
+    // Open a new window with the popout HTML
+    const w = window.open('', 'aula-java-' + kind, 'width=800,height=600');
+    if (!w) {
+      toast('El navegador bloqueó la ventana. Permite pop-ups para esta página.', 'error');
+      return;
+    }
+    w.document.open();
+    w.document.write(POPOUT_HTML);
+    w.document.close();
+    popoutWins[kind] = w;
+
+    // After the window loads, send initial data
+    setTimeout(() => {
+      if (kind === 'editor') {
+        // Send current editor code
+        try {
+          w.postMessage({ aulaType: 'editor-push', code: $('#editor').value }, '*');
+        } catch (e) {}
+      }
+    }, 100);
+  }
+
+  function setupPopoutHost() {
+    // If this window was opened as a popout (hash is #editor or #lesson),
+    // the popout script in POPOUT_HTML handles everything; here we handle
+    // sync messages from popped-out windows.
+    window.addEventListener('message', (ev) => {
+      if (!ev.data || !ev.data.aulaType) return;
+      if (ev.data.aulaType === 'editor-sync-req') {
+        // Popout editor asked for the current code
+        if (popoutWins.editor && !popoutWins.editor.closed) {
+          popoutWins.editor.postMessage({ aulaType: 'editor-push', code: $('#editor').value }, '*');
+        }
+      }
+    });
+  }
+
+  global.ui = { init, toast, renderRoadmap, renderPlayer, loadLesson, runCode, checkCode, popout };
 })(window);
 
 
